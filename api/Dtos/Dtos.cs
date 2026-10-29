@@ -42,6 +42,15 @@ public class CreateDoctorRequest
     [Required, StringLength(80, MinimumLength = 2), NoHtml] public string Specialty { get; set; } = "";
 }
 
+public class CreateNurseRequest
+{
+    [Required, EmailAddress, StringLength(254)] public string Email { get; set; } = "";
+    [Required, StringLength(128, MinimumLength = 10),
+     RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$", ErrorMessage = "Password needs upper, lower case and a digit.")]
+    public string Password { get; set; } = "";
+    [Required, StringLength(100, MinimumLength = 2), NoHtml] public string FullName { get; set; } = "";
+}
+
 public record DoctorDto(Guid Id, string FullName, string Specialty);
 public record UserDto(Guid Id, string Email, string FullName, string Role);
 

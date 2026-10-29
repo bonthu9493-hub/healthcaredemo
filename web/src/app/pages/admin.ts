@@ -22,6 +22,20 @@ import { Api, AuditRow, UserRow, errorText } from '../core/api';
       <button [disabled]="f.invalid">Create doctor</button>
     </form>
 
+    <form class="card" (ngSubmit)="createNurse()" #nf="ngForm">
+      <h2>Add a nurse</h2>
+      @if (nurseError()) { <p class="error" role="alert">{{ nurseError() }}</p> }
+      @if (nurseOk()) { <p class="ok" role="status">{{ nurseOk() }}</p> }
+      <div class="row">
+        <label>Full name <input name="nn" [(ngModel)]="n.fullName" required minlength="2" maxlength="100" pattern="[^<>]*" /></label>
+        <label>Email <input type="email" name="ne" [(ngModel)]="n.email" required maxlength="254" autocomplete="off" /></label>
+      </div>
+      <label>Temporary password <input type="password" name="np" [(ngModel)]="n.password" required minlength="10" maxlength="128"
+        pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+" autocomplete="new-password" />
+        <small class="muted">10+ characters with upper case, lower case and a number.</small></label>
+      <button [disabled]="nf.invalid">Create nurse</button>
+    </form>
+
     <div class="card">
       <h2>Users</h2>
       <table>
@@ -50,12 +64,23 @@ export class Admin implements OnInit {
   error = signal('');
   ok = signal('');
   m = { fullName: '', specialty: '', email: '', password: '' };
+  nurseError = signal('');
+  nurseOk = signal('');
+  n = { fullName: '', email: '', password: '' };
 
   ngOnInit() { this.refresh(); }
 
   refresh() {
     this.api.users().subscribe((u) => this.users.set(u));
     this.api.audit().subscribe((a) => this.audit.set(a));
+  }
+
+  createNurse() {
+    this.nurseError.set(''); this.nurseOk.set('');
+    this.api.createNurse(this.n).subscribe({
+      next: (u) => { this.nurseOk.set(`Nurse ${u.fullName} created.`); this.n = { fullName: '', email: '', password: '' }; this.refresh(); },
+      error: (e) => this.nurseError.set(errorText(e)),
+    });
   }
 
   create() {

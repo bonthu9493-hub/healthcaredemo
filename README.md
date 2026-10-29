@@ -13,7 +13,8 @@ A full-stack hospital management app with **real-time** appointment notification
 
 - **Patients** register, book appointments with doctors, cancel them, and read their own medical records.
 - **Doctors** see their appointments, mark them complete/cancelled, view only the patients they have an appointment with, and write medical records.
-- **Admins** create doctor accounts, list users, and review the audit log. Admins cannot read clinical records.
+- **Nurses** (created by an admin) can view all appointments, read-only. They cannot change appointments, read medical records or see the patient list.
+- **Admins** create doctor and nurse accounts, list users, and review the audit log. Admins cannot read clinical records.
 - **Real time:** when a patient books, the doctor's screen shows a toast and refreshes instantly. When a doctor completes or cancels, the patient is notified (SignalR WebSockets).
 - **Audit log** of logins, failed logins, bookings and every read/write of medical records.
 
@@ -68,11 +69,11 @@ Sign in as the seeded admin, add a doctor, then register a patient from the logi
 |--------|-------|-----|
 | POST | `/api/auth/register`, `/api/auth/login` | public (rate limited) |
 | GET | `/api/doctors` | any signed-in user |
-| GET/POST | `/api/appointments` | own data only (POST: patients) |
-| PATCH | `/api/appointments/{id}/status` | participants only |
+| GET/POST | `/api/appointments` | own data only (POST: patients); nurses/admins read all |
+| PATCH | `/api/appointments/{id}/status` | participants and admins (not nurses) |
 | GET | `/api/records` | patient (own) / doctor (own patients) |
 | POST | `/api/records`, GET `/api/patients` | doctors |
-| POST | `/api/admin/doctors`, GET `/api/admin/users`, `/api/admin/audit` | admins |
+| POST | `/api/admin/doctors`, `/api/admin/nurses`, GET `/api/admin/users`, `/api/admin/audit` | admins |
 | WS | `/hubs/notifications` | signed-in users |
 
 ## Security

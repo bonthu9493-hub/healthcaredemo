@@ -12,7 +12,7 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 | Password hashing | BCrypt, work factor 12. Password policy: 10+ chars with upper, lower, digit. |
 | Brute force | Account lockout (5 failures → 15 min) plus per-IP rate limit on `/api/auth/*` (10/min). Unknown emails take the same time as wrong passwords; errors are generic (no account enumeration). |
 | Authorisation | Fallback policy requires login on every endpoint unless `[AllowAnonymous]`. Admin routes: `[Authorize(Roles = Admin)]`. Angular route guards mirror this (UX only; the API is the authority). |
-| Users access own data | All queries are scoped by the caller's id/role. A patient sees only own appointments/records; a doctor only patients with whom they have an appointment; admins cannot read clinical records. Out-of-scope ids return 404/403, not data. |
+| Users access own data | All queries are scoped by the caller's id/role. A patient sees only own appointments/records; a doctor only patients with whom they have an appointment; admins cannot read clinical records; nurses get read-only access to appointments and nothing clinical (least privilege). Out-of-scope ids return 404/403, not data. |
 | Input sanitising | DataAnnotations validation (length, format, regex) on every DTO; `[NoHtml]` rejects `<` and `>` in free-text fields; EF Core parameterises all SQL (no string-built queries). |
 | XSS | Angular escapes all interpolation and the app never uses `innerHTML`; server rejects markup; strict CSP in the SPA (`script-src 'self'`) and `default-src 'none'` on API responses. |
 | Rate limiting | Global 120 req/min per IP, auth endpoints 10/min; returns 429. |

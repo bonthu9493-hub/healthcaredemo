@@ -29,6 +29,24 @@ public class AdminController(AppDbContext db, AuditService audit) : ControllerBa
         return StatusCode(201, new DoctorDto(doctor.Id, user.FullName, doctor.Specialty));
     }
 
+    [HttpPost("nurses")]
+    public async Task<ActionResult<UserDto>> CreateNurse(CreateNurseRequest req)
+    {
+        var email = req.Email.Trim().ToLowerInvariant();
+        if (await db.Users.AnyAsync(u => u.Email == email))
+            return BadRequest(new { error = "Email already in use." });
+
+        var user = new AppUser
+        {
+            Email = email, FullName = req.FullName.Trim(), Role = Roles.Nurse,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("CreateNurse", "User", user.Id.ToString());
+        return StatusCode(201, new UserDto(user.Id, user.Email, user.FullName, user.Role));
+    }
+
     [HttpGet("users")]
     public async Task<IEnumerable<UserDto>> Users() =>
         await db.Users.AsNoTracking().OrderBy(u => u.FullName)

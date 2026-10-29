@@ -3,7 +3,7 @@
   @if (auth.session(); as s) {
     <nav>
       <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
-      @if (s.role !== 'Admin') { <a routerLink="/records" routerLinkActive="active">Records</a> }
+      @if (s.role === 'Patient' || s.role === 'Doctor') { <a routerLink="/records" routerLinkActive="active">Records</a> }
       @if (s.role === 'Admin') { <a routerLink="/admin" routerLinkActive="active">Admin</a> }
     </nav>
     <span class="who">{{ s.fullName }} <small>({{ s.role }})</small></span>

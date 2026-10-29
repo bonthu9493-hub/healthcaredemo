@@ -5,7 +5,7 @@ import { tap } from 'rxjs';
 
 export const API = 'http://localhost:5098';
 
-export type Role = 'Patient' | 'Doctor' | 'Admin';
+export type Role = 'Patient' | 'Doctor' | 'Nurse' | 'Admin';
 
 export interface Session {
   token: string;

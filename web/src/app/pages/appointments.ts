@@ -30,7 +30,7 @@ import { Realtime } from '../core/realtime';
     }
 
     <div class="card">
-      <h2>{{ auth.role() === 'Admin' ? 'All appointments' : 'My appointments' }} <span class="live" title="Updates arrive in real time">● live</span></h2>
+      <h2>{{ auth.role() === 'Admin' || auth.role() === 'Nurse' ? 'All appointments' : 'My appointments' }} <span class="live" title="Updates arrive in real time">● live</span></h2>
       @if (!items().length) { <p class="muted">No appointments yet.</p> }
       <table>
         @if (items().length) {
@@ -45,7 +45,7 @@ import { Realtime } from '../core/realtime';
               <td>{{ a.reason }}</td>
               <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
               <td class="actions">
-                @if (a.status === 'Scheduled') {
+                @if (a.status === 'Scheduled' && auth.role() !== 'Nurse') {
                   @if (auth.role() !== 'Patient') { <button class="small" (click)="set(a, 'Completed')">Complete</button> }
                   <button class="small danger" (click)="set(a, 'Cancelled')">Cancel</button>
                 }

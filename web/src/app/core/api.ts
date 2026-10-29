@@ -35,6 +35,8 @@ export class Api {
   myPatients = () => this.http.get<PatientRow[]>(this.u('/patients'));
   createDoctor = (b: { email: string; password: string; fullName: string; specialty: string }) =>
     this.http.post<Doctor>(this.u('/admin/doctors'), b);
+  createNurse = (b: { email: string; password: string; fullName: string }) =>
+    this.http.post<UserRow>(this.u('/admin/nurses'), b);
   users = () => this.http.get<UserRow[]>(this.u('/admin/users'));
   audit = () => this.http.get<AuditRow[]>(this.u('/admin/audit'));
 }

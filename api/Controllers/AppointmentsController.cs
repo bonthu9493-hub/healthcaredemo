@@ -18,7 +18,7 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
         var q = db.Appointments.AsNoTracking();
         return User.RoleName() switch
         {
-            Roles.Admin => q,
+            Roles.Admin or Roles.Nurse => q,
             Roles.Doctor => q.Where(a => a.Doctor.UserId == uid),
             _ => q.Where(a => a.Patient.UserId == uid),
         };
@@ -62,7 +62,7 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
         return StatusCode(201, dto);
     }
 
-    [HttpPatch("{id:guid}/status")]
+    [HttpPatch("{id:guid}/status"), Authorize(Roles = $"{Roles.Patient},{Roles.Doctor},{Roles.Admin}")]
     public async Task<ActionResult<AppointmentDto>> UpdateStatus(Guid id, UpdateStatusRequest req)
     {
         if (!AppointmentStatus.All.Contains(req.Status))
