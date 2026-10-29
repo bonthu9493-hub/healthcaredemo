@@ -1,0 +1,15 @@
+bin/
+obj/
+node_modules/
+dist/
+.angular/
+.vs/
+.env
+.env.*
+!.env.example
+*.user
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.key
+*.log
