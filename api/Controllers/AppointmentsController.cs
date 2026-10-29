@@ -69,10 +69,11 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
             return BadRequest(new { error = "Invalid status." });
 
         // Scoped by Visible(): a user can only ever touch appointments they are part of.
-        var visibleIds = Visible().Where(a => a.Id == id).Select(a => a.Id);
+        // Two separate queries on purpose: the AsNoTracking inside Visible() would make a combined query
+        // untracked, and the status change below would silently not be saved.
+        if (!await Visible().AnyAsync(a => a.Id == id)) return NotFound();
         var appt = await db.Appointments.Include(a => a.Patient.User).Include(a => a.Doctor.User)
-            .Where(a => visibleIds.Contains(a.Id)).FirstOrDefaultAsync();
-        if (appt is null) return NotFound();
+            .FirstAsync(a => a.Id == id);
 
         // Patients may only cancel; doctors/admins may set any status.
         if (User.RoleName() == Roles.Patient && req.Status != AppointmentStatus.Cancelled)
