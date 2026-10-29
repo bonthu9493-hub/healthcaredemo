@@ -13,3 +13,4 @@ secrets.json
 *.pfx
 *.key
 *.log
+*.err

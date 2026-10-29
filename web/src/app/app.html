@@ -1,0 +1,13 @@
+<header class="topbar">
+  <a class="brand" routerLink="/">+ MediCare HMS</a>
+  @if (auth.session(); as s) {
+    <nav>
+      <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
+      @if (s.role !== 'Admin') { <a routerLink="/records" routerLinkActive="active">Records</a> }
+      @if (s.role === 'Admin') { <a routerLink="/admin" routerLinkActive="active">Admin</a> }
+    </nav>
+    <span class="who">{{ s.fullName }} <small>({{ s.role }})</small></span>
+    <button class="small" (click)="logout()">Sign out</button>
+  }
+</header>
+<main><router-outlet /></main>
