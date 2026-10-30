@@ -25,6 +25,10 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 | Vitals | Severity is computed on the server from fixed thresholds (the client can't set it), ranges are validated, and access is scoped: patients read only their own readings, doctors only patients they have an appointment with, nurses may record for any patient, admins have no access. Reads and writes are audit-logged. |
 | Code blue | Doctors and nurses only, location text validated (no markup), rate-limited to 5 per minute per IP, and audit-logged. |
 | Patient lookup | Nurses and admins get a name-only search (min 2 chars, max 20 results) so they never receive dates of birth or phone numbers. |
+| Search and paging | Search text is passed to SQL as a parameter (no string-built queries), trimmed and capped at 100 characters, and wildcard characters are treated as plain text. Searches run on top of the access filter, so searching can never reveal rows the user couldn't already list. Page size is capped at 100. |
+| Automated checks | CI builds and tests every push, fails on known-vulnerable NuGet/npm packages, scans the full git history for secrets (gitleaks), and runs with a read-only token. The test database password is generated per run, never stored. Dependabot proposes dependency updates. |
+| Containers | Images run as a non-root user with all Linux capabilities dropped and `no-new-privileges`. The database port is not published. Secrets come from a git-ignored `.env`. The web image sends the same CSP and security headers from nginx. |
+| Production build vs CSP | The production build used to inject an inline script (for the stylesheet) which our CSP blocks. This is turned off (`inlineCritical: false`) so the strict CSP works in production, not only in development. |
 | Audit trail | Logins, failed logins, bookings and all medical record reads/writes are logged with user and IP. |
 | Exposed files | The API serves no static files or directory listings. Only source files are tracked in git. |
 
@@ -38,6 +42,9 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 - Manual tests: unauthenticated → 401; patient on admin route → 403; admin on clinical records → 403; cross-patient data → empty; double booking → 409; `<script>` payload → 400; 6 bad logins → lockout; burst of logins → 429.
 
 ## Known limitations / before production
+
+- **Docker files are unverified locally.** Docker isn't installed on the development PC, so the Dockerfiles and compose file were written but never built or run there. The CI "Docker images build" job builds the images; run `docker compose up --build` once and fix anything it reports.
+- The compose file connects to SQL Server as `sa` for simplicity. Create a least-privilege database login for anything beyond a demo.
 
 - The JWT is kept in `sessionStorage` (cleared when the tab closes). CSP mitigates XSS, but the stronger design is an `HttpOnly; Secure; SameSite` cookie with refresh-token rotation.
 - SignalR sends the token as a query-string parameter (browser WebSocket limitation); keep access logs from recording query strings.

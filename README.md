@@ -25,11 +25,16 @@ A full-stack hospital management app with **real-time** appointment notification
 - **Real time:** when a patient books, the doctor's screen shows a toast and refreshes instantly. When a doctor completes or cancels, the patient is notified (SignalR WebSockets).
 - **Audit log** of logins, failed logins, bookings and every read/write of medical records.
 
+- **Search and paging:** appointments, medical records, users and the audit log are searched, filtered and paged on the server (page size capped at 100), always inside what the signed-in user is allowed to see.
+
 ## Project layout
 
 ```
-api/   ASP.NET Core Web API (Controllers, Data, Dtos, Hubs, Services, Migrations)
-web/   Angular frontend (core/ = auth, api, realtime; pages/ = screens)
+api/                 ASP.NET Core Web API (Controllers, Data, Dtos, Hubs, Services, Migrations)
+api.tests/           Automated API tests (xUnit, run against a real SQL Server)
+web/                 Angular frontend (core/ = auth, api, realtime; pages/ = screens; ui/ = shared pieces)
+docker-compose.yml   One-command start: database + API + web
+.github/workflows/   CI pipeline (build, test, audit, secret scan)
 ```
 
 ## Running locally
@@ -70,13 +75,43 @@ npm start          # http://localhost:4200
 
 Sign in as the seeded admin, add a doctor, then register a patient from the login page.
 
+## Running the tests
+
+```bash
+# API: 100+ tests. They start the real API in memory against a throwaway database
+# (created and deleted automatically). Defaults to local SQL Express; use TEST_SQL_CONNECTION for another server.
+# Stop the running API first, or the build can't replace its files.
+dotnet test api.tests
+
+# Web: unit tests (Vitest)
+cd web
+npm test -- --watch=false
+```
+
+The tests cover login and lockout, who may see or change what (patients, doctors, nurses, admins), double-booking, schedules and slots, vitals thresholds, code blue, the queue, attendance reports (including CSV formula protection), security headers, CORS and rate limiting. They have been checked to fail when the code is broken (for example, the bug where a status change returned success but was not saved).
+
+## Docker (one command)
+
+Requires Docker Desktop. The database is only reachable from inside the Docker network.
+
+```bash
+cp .env.example .env        # then edit .env: set SQL_SA_PASSWORD, JWT_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
+docker compose up --build
+```
+
+Open http://localhost:4200. The API is on http://localhost:5098. The Docker setup uses these two ports because the web app's API address and Content-Security-Policy are set to `localhost:5098`; to deploy elsewhere, change `API` in `web/src/app/core/auth.ts`, and `connect-src` in `web/src/index.html` and `web/nginx.conf`.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request: builds and tests the API against a temporary SQL Server (with a random password generated for that run), builds and tests the web app, fails on known vulnerable NuGet or npm packages, scans the whole git history for committed secrets, and builds both Docker images. Dependabot (`.github/dependabot.yml`) opens pull requests for dependency updates.
+
 ## Main API endpoints
 
 | Method | Route | Who |
 |--------|-------|-----|
 | POST | `/api/auth/register`, `/api/auth/login` | public (rate limited) |
 | GET | `/api/doctors` | any signed-in user |
-| GET/POST | `/api/appointments` | own data only (POST: patients); nurses/admins read all |
+| GET/POST | `/api/appointments?q=&status=&page=&pageSize=` | own data only (POST: patients); nurses/admins read all |
 | PATCH | `/api/appointments/{id}/status` | participants and admins (not nurses) |
 | GET | `/api/records` | patient (own) / doctor (own patients) |
 | POST | `/api/records`, GET `/api/patients` | doctors |

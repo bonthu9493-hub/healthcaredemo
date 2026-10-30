@@ -1,0 +1,21 @@
+# Opens pull requests when a dependency has a new version or a security fix.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /api
+    schedule: { interval: weekly }
+  - package-ecosystem: nuget
+    directory: /api.tests
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directory: /api
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directory: /web
+    schedule: { interval: monthly }
