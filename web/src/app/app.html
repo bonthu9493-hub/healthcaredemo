@@ -1,17 +1,68 @@
+@if (notes.emergency(); as e) {
+  <div class="emergency" role="alert">
+    <strong>🚨 {{ e.message }}</strong>
+    <button class="small" (click)="notes.dismissEmergency()">Acknowledge</button>
+  </div>
+}
+
 <header class="topbar">
   <a class="brand" routerLink="/">+ MediCare HMS</a>
   @if (auth.session(); as s) {
     <nav>
       <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
+      <a routerLink="/queue" routerLinkActive="active">Queue</a>
+      @if (s.role !== 'Admin') { <a routerLink="/vitals" routerLinkActive="active">Vitals</a> }
       @if (s.role === 'Patient' || s.role === 'Doctor') { <a routerLink="/records" routerLinkActive="active">Records</a> }
+      @if (s.role === 'Doctor') { <a routerLink="/schedule" routerLinkActive="active">Schedule</a> }
       @if (s.role === 'Doctor' || s.role === 'Nurse') { <a routerLink="/attendance" routerLinkActive="active">My attendance</a> }
       @if (s.role === 'Admin') {
         <a routerLink="/admin" routerLinkActive="active">Admin</a>
         <a routerLink="/reports" routerLinkActive="active">Reports</a>
       }
     </nav>
+    @if (s.role === 'Doctor' || s.role === 'Nurse') {
+      <button class="small danger" (click)="codeBlueOpen.set(true)">Code Blue</button>
+    }
+    <div class="bell-wrap">
+      <button class="bell" (click)="panelOpen.set(!panelOpen())" aria-label="Notifications" [attr.aria-expanded]="panelOpen()">
+        🔔 @if (notes.unreadCount() > 0) { <span class="count">{{ notes.unreadCount() }}</span> }
+      </button>
+      @if (panelOpen()) {
+        <div class="panel" role="dialog" aria-label="Notifications">
+          <div class="panel-head">
+            <strong>Notifications</strong>
+            @if (notes.unreadCount() > 0) { <button class="link" (click)="notes.markAll()">Mark all read</button> }
+          </div>
+          @if (!notes.items().length) { <p class="muted pad">Nothing yet.</p> }
+          @for (n of notes.items(); track n.id) {
+            <button class="note" [class.unread]="!n.read" (click)="notes.markRead(n)">
+              <span class="tag {{ n.type }}">{{ n.type === 'CodeBlue' ? 'Code blue' : n.type }}</span>
+              <span>{{ n.message }}</span>
+              <small class="muted">{{ n.createdAt | date: 'medium' }}</small>
+            </button>
+          }
+        </div>
+      }
+    </div>
     <span class="who">{{ s.fullName }} <small>({{ s.role }})</small></span>
     <button class="small" (click)="logout()">Sign out</button>
   }
 </header>
+
+@if (codeBlueOpen()) {
+  <div class="modal-backdrop">
+    <form class="modal card" (ngSubmit)="sendCodeBlue()" #cb="ngForm" role="dialog" aria-label="Raise code blue">
+      <h2>🚨 Raise code blue</h2>
+      <p class="muted">This alerts every doctor and nurse immediately. Use it only for a real emergency.</p>
+      @if (codeBlueMsg()) { <p [class]="codeBlueError() ? 'error' : 'ok'" role="status">{{ codeBlueMsg() }}</p> }
+      <label>Location <input name="loc" [(ngModel)]="location" required minlength="2" maxlength="100" pattern="[^<>]*" placeholder="e.g. Ward 3, Bed 12" /></label>
+      <div class="row-btns">
+        <button class="danger" [disabled]="cb.invalid">Send alert</button>
+        <button type="button" class="secondary" (click)="codeBlueOpen.set(false)">Cancel</button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (notes.toast()) { <div class="toast" role="status">{{ notes.toast() }}</div> }
 <main><router-outlet /></main>

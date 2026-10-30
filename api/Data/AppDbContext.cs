@@ -11,6 +11,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<VitalSign> VitalSigns => Set<VitalSign>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<QueueToken> QueueTokens => Set<QueueToken>();
+    public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -49,6 +53,33 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Notes).HasMaxLength(4000);
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<VitalSign>(e =>
+        {
+            e.HasIndex(x => new { x.PatientId, x.RecordedAt });
+            e.Property(x => x.TemperatureC).HasPrecision(4, 1);
+            e.Property(x => x.Severity).HasMaxLength(10);
+            e.Property(x => x.AlertReason).HasMaxLength(300);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.RecordedBy).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Notification>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.Type).HasMaxLength(20);
+            e.Property(x => x.Message).HasMaxLength(500);
+        });
+        b.Entity<QueueToken>(e =>
+        {
+            e.HasIndex(x => new { x.Date, x.DoctorId, x.Number }).IsUnique();
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<DoctorSchedule>(e =>
+        {
+            e.HasIndex(x => new { x.DoctorId, x.Day });
+            e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<AttendanceRecord>(e =>
         {

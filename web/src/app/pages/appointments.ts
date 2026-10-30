@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { Api, Appointment, Doctor, errorText } from '../core/api';
+import { Api, Appointment, Doctor, SlotsResponse, errorText } from '../core/api';
 import { Auth } from '../core/auth';
 import { Realtime } from '../core/realtime';
 
@@ -17,15 +17,28 @@ import { Realtime } from '../core/realtime';
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
         <div class="row">
           <label>Doctor
-            <select name="doctor" [(ngModel)]="form.doctorId" required>
+            <select name="doctor" [(ngModel)]="form.doctorId" (ngModelChange)="loadSlots()" required>
               <option value="" disabled>Select…</option>
               @for (d of doctors(); track d.id) { <option [value]="d.id">{{ d.fullName }} — {{ d.specialty }}</option> }
             </select>
           </label>
-          <label>Date &amp; time <input type="datetime-local" name="when" [(ngModel)]="form.when" required [min]="minDate" /></label>
+          <label>Date <input type="date" name="date" [(ngModel)]="form.date" (ngModelChange)="loadSlots()" required [min]="today" /></label>
         </div>
+        @if (slots().hasSchedule) {
+          <div>
+            <strong>Available times</strong>
+            @if (!slots().slots.length) { <p class="muted">No free slots on this day. Try another date.</p> }
+            <div class="slots">
+              @for (s of slots().slots; track s) {
+                <button type="button" class="slot" [class.picked]="form.when === s" (click)="form.when = s">{{ s | date: 'shortTime' }}</button>
+              }
+            </div>
+          </div>
+        } @else if (form.doctorId && form.date) {
+          <label>Time <input type="time" name="time" [(ngModel)]="form.time" required /></label>
+        }
         <label>Reason <input name="reason" [(ngModel)]="form.reason" required minlength="3" maxlength="500" pattern="[^<>]*" /></label>
-        <button [disabled]="f.invalid">Book</button>
+        <button [disabled]="f.invalid || !canBook()">Book</button>
       </form>
     }
 
@@ -70,17 +83,18 @@ export class Appointments implements OnInit, OnDestroy {
   doctors = signal<Doctor[]>([]);
   error = signal('');
   toast = signal('');
-  form = { doctorId: '', when: '', reason: '' };
-  minDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  form = { doctorId: '', date: '', time: '', when: '', reason: '' };
+  slots = signal<SlotsResponse>({ hasSchedule: false, slots: [] });
+  today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
   ngOnInit() {
     this.load();
     if (this.auth.role() === 'Patient') this.api.doctors().subscribe((d) => this.doctors.set(d));
     this.rt.start();
-    this.sub = this.rt.events.subscribe((e) => {
+    // The app-wide notification toast tells the user what happened; this page just refreshes its list.
+    this.sub = this.rt.events.subscribe(() => {
       this.load();
-      const who = this.auth.role() === 'Patient' ? e.appointment.doctorName : e.appointment.patientName;
-      this.notify(e.type === 'created' ? `New appointment from ${who}` : `Appointment with ${who} is now ${e.appointment.status}`);
+      if (this.form.doctorId && this.form.date) this.loadSlots();
     });
   }
 
@@ -90,11 +104,29 @@ export class Appointments implements OnInit, OnDestroy {
 
   load() { this.api.appointments().subscribe((a) => this.items.set(a)); }
 
+  loadSlots() {
+    this.form.when = '';
+    this.slots.set({ hasSchedule: false, slots: [] });
+    if (!this.form.doctorId || !this.form.date) return;
+    this.api.slots(this.form.doctorId, this.form.date).subscribe({
+      next: (s) => this.slots.set(s),
+      error: (e) => this.error.set(errorText(e)),
+    });
+  }
+
+  canBook() { return this.slots().hasSchedule ? !!this.form.when : !!this.form.time; }
+
   book() {
     this.error.set('');
-    this.api.book({ doctorId: this.form.doctorId, startsAt: new Date(this.form.when).toISOString(), reason: this.form.reason }).subscribe({
-      next: () => { this.form = { doctorId: '', when: '', reason: '' }; this.load(); this.notify('Appointment booked'); },
-      error: (e) => this.error.set(errorText(e)),
+    const startsAt = this.slots().hasSchedule ? this.form.when : new Date(`${this.form.date}T${this.form.time}`).toISOString();
+    this.api.book({ doctorId: this.form.doctorId, startsAt, reason: this.form.reason }).subscribe({
+      next: () => {
+        this.form = { doctorId: '', date: '', time: '', when: '', reason: '' };
+        this.slots.set({ hasSchedule: false, slots: [] });
+        this.load();
+        this.notify('Appointment booked');
+      },
+      error: (e) => { this.error.set(errorText(e)); this.loadSlots(); },
     });
   }
 

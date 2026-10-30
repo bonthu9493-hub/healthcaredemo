@@ -22,6 +22,9 @@ public class AttendanceClock
     public bool IsLate(DateTimeOffset checkIn) =>
         TimeOnly.FromDateTime(ToLocal(checkIn).DateTime) > ShiftStart.AddMinutes(GraceMinutes);
 
+    public DateTimeOffset LocalToUtc(DateOnly d, TimeOnly t) =>
+        new(TimeZoneInfo.ConvertTimeToUtc(d.ToDateTime(t), Zone), TimeSpan.Zero);
+
     /// <summary>Midnight at the start of this local date, as a UTC instant.</summary>
     public DateTimeOffset StartOfDayUtc(DateOnly d) =>
         new(TimeZoneInfo.ConvertTimeToUtc(d.ToDateTime(TimeOnly.MinValue), Zone), TimeSpan.Zero);

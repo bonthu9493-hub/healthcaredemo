@@ -21,6 +21,10 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 | No debug mode | No developer exception page; errors are generic ProblemDetails with no stack traces in any environment. EF SQL command logging is off. |
 | Database | EF parameterised queries, length limits and unique indexes, FK `Restrict` deletes, encrypted connection (`Encrypt=True`), Windows authentication locally (no DB password). Use a least-privilege SQL login in production. |
 | Attendance & reports | Staff can only record their own check-in/out (identity comes from the token, never the request). Reports are admin-only, limited to a 366-day range, and every CSV export is audit-logged. CSV cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets can't run injected formulas. No-show can't be set on a future appointment, and finished appointments can't be edited. |
+| Real-time data | The SignalR hub requires a valid token and addresses each user by id, so a notification or vitals update is delivered only to its intended recipients. The queue signal carries no data: clients re-fetch the board through the normal authorised endpoint. Notifications are filtered by the caller's own id on every read and update. |
+| Vitals | Severity is computed on the server from fixed thresholds (the client can't set it), ranges are validated, and access is scoped: patients read only their own readings, doctors only patients they have an appointment with, nurses may record for any patient, admins have no access. Reads and writes are audit-logged. |
+| Code blue | Doctors and nurses only, location text validated (no markup), rate-limited to 5 per minute per IP, and audit-logged. |
+| Patient lookup | Nurses and admins get a name-only search (min 2 chars, max 20 results) so they never receive dates of birth or phone numbers. |
 | Audit trail | Logins, failed logins, bookings and all medical record reads/writes are logged with user and IP. |
 | Exposed files | The API serves no static files or directory listings. Only source files are tracked in git. |
 

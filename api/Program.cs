@@ -32,6 +32,7 @@ builder.WebHost.ConfigureKestrel(o =>
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connection));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<AttendanceClock>();
 builder.Services.AddSingleton<IUserIdProvider, SubUserIdProvider>();
@@ -86,6 +87,9 @@ builder.Services.AddRateLimiter(o =>
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(c =>
         RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
         { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+    // Code blue must not be spammable
+    o.AddPolicy("emergency", c => RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
+    { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
     // Brute-force protection for register/login
     o.AddPolicy("auth", c => RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
     { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));

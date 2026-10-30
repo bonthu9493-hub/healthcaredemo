@@ -17,6 +17,11 @@ A full-stack hospital management app with **real-time** appointment notification
 - **Admins** create doctor and nurse accounts, list users, and review the audit log. Admins cannot read clinical records.
 - **Staff attendance:** doctors and nurses check in and out of their shift (**My attendance** page). Admins get a per-person report for any date range (weekdays present/absent, hours worked, late arrivals, missing check-outs) and can download it as CSV. Hospital time zone, shift start and grace period are configured under `Attendance` in `api/appsettings.json`.
 - **Appointment attendance:** doctors mark a past appointment **Attended** or **No-show**. Admins get a per-doctor report (attended, no-show, cancelled, upcoming, not yet marked, attendance rate) with CSV export. Once an appointment is no longer Scheduled it can't be changed, so the history stays trustworthy.
+- **Live vitals:** nurses (and doctors for their own patients) record heart rate, blood pressure, oxygen and temperature. The server grades each reading Normal / Warning / Critical and, if abnormal, alerts the patient's doctors and all nurses instantly. Patients can see their own readings and a heart-rate trend.
+- **Code blue:** a doctor or nurse raises an emergency with a location. Every other doctor and nurse sees a red alarm banner immediately (rate-limited to prevent spam).
+- **Notification centre:** the bell in the top bar keeps every alert (appointments, vitals, code blue, queue). They are stored per user, survive a refresh, and can be marked read.
+- **Live queue board:** nurses issue numbered tokens per doctor; doctors call the next patient; everyone's board updates instantly and patients are notified when it's their turn. Patients only see their own name on the board.
+- **Doctor schedules and slot booking:** doctors define weekly working windows and slot lengths. Patients pick from free slots only; booked slots disappear, and cancelled ones come back. A doctor with no schedule can still be booked at any time.
 - **Real time:** when a patient books, the doctor's screen shows a toast and refreshes instantly. When a doctor completes or cancels, the patient is notified (SignalR WebSockets).
 - **Audit log** of logins, failed logins, bookings and every read/write of medical records.
 
@@ -76,6 +81,15 @@ Sign in as the seeded admin, add a doctor, then register a patient from the logi
 | GET | `/api/records` | patient (own) / doctor (own patients) |
 | POST | `/api/records`, GET `/api/patients` | doctors |
 | POST | `/api/admin/doctors`, `/api/admin/nurses`, GET `/api/admin/users`, `/api/admin/audit` | admins |
+| POST/GET | `/api/vitals` | nurses, doctors (own patients); patients read own |
+| POST | `/api/emergency/code-blue` | doctors, nurses |
+| GET | `/api/notifications`, POST `/api/notifications/{id}/read`, `/read-all` | own notifications only |
+| GET | `/api/queue/board` | any signed-in user (patients see only their own name) |
+| POST | `/api/queue/tokens`, `/api/queue/tokens/{id}/skip` | nurses, admins (skip: doctors too) |
+| POST | `/api/queue/call-next` | doctors (own queue) |
+| GET/PUT | `/api/schedule/me` | doctors |
+| GET | `/api/doctors/{id}/slots?date=` | any signed-in user |
+| GET | `/api/patients/lookup?q=` | nurses, admins (id and name only) |
 | GET | `/api/attendance/me` | doctors, nurses (own shifts) |
 | POST | `/api/attendance/check-in`, `/api/attendance/check-out` | doctors, nurses |
 | GET | `/api/admin/reports/staff-attendance[.csv]?from=&to=` | admins |

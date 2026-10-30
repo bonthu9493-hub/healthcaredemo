@@ -10,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace HospitalApi.Controllers;
 
 [ApiController, Route("api/appointments"), Authorize]
-public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHub> hub, AuditService audit) : ControllerBase
+public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHub> hub, AuditService audit,
+    AttendanceClock clock, NotificationService notify) : ControllerBase
 {
     private IQueryable<Appointment> Visible()
     {
@@ -44,9 +45,20 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
         if (doctor is null) return BadRequest(new { error = "Doctor not found." });
 
         var start = req.StartsAt.ToUniversalTime();
+
+        // If the doctor publishes a schedule, the time must be exactly one of its slots.
+        var schedule = await db.DoctorSchedules.AsNoTracking().Where(s => s.DoctorId == doctor.Id).ToListAsync();
+        var slotMinutes = 30;
+        if (schedule.Count > 0)
+        {
+            var match = Scheduling.MatchingEntry(schedule, clock.ToLocal(start));
+            if (match is null) return BadRequest(new { error = "Please choose one of the doctor's available slots." });
+            slotMinutes = match.SlotMinutes;
+        }
+
         var taken = await db.Appointments.AnyAsync(a => a.DoctorId == doctor.Id
             && a.Status == AppointmentStatus.Scheduled
-            && a.StartsAt > start.AddMinutes(-30) && a.StartsAt < start.AddMinutes(30));
+            && a.StartsAt > start.AddMinutes(-slotMinutes) && a.StartsAt < start.AddMinutes(slotMinutes));
         if (taken) return Conflict(new { error = "That time slot is not available." });
 
         var appt = new Appointment
@@ -59,6 +71,8 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
 
         var dto = ToDto(appt);
         await hub.Clients.User(doctor.UserId.ToString()).SendAsync("appointmentCreated", dto);
+        await notify.SendAsync([doctor.UserId], NotificationType.Appointment,
+            $"New appointment: {patient.User.FullName} on {clock.ToLocal(start):dd MMM, h:mm tt} — {appt.Reason}");
         return StatusCode(201, dto);
     }
 
@@ -96,6 +110,8 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
         var me = User.UserId();
         var other = appt.Patient.UserId == me ? appt.Doctor.UserId : appt.Patient.UserId;
         await hub.Clients.User(other.ToString()).SendAsync("appointmentUpdated", dto);
+        await notify.SendAsync([other], NotificationType.Appointment,
+            $"Appointment on {clock.ToLocal(appt.StartsAt):dd MMM, h:mm tt} ({appt.Doctor.User.FullName} / {appt.Patient.User.FullName}) is now {appt.Status}.");
         return dto;
     }
 }
