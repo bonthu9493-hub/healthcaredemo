@@ -1,0 +1,11 @@
+title = "Hospital project secret-scan rules"
+
+[extend]
+useDefault = true   # keep every built-in rule
+
+[allowlist]
+description = "Throwaway passwords used only by automated tests, against a temporary database that is deleted afterwards"
+regexes = [
+  '''TestPass12345''',
+  '''WrongPass12345''',
+]

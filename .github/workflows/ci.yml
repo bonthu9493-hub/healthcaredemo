@@ -88,8 +88,11 @@ jobs:
         with:
           fetch-depth: 0 # scan the whole history, not just the latest commit
       - name: Scan for committed secrets
+        # "safe.directory": the repo is owned by the runner user, and git inside the container refuses to read it otherwise.
+        # Findings are printed redacted, so a failure explains itself without leaking the value.
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.18.4 detect --source /repo --no-banner --redact
+          docker run --rm -v "$PWD:/repo" --entrypoint /bin/sh zricethezav/gitleaks:v8.18.4 -c \
+            'git config --global --add safe.directory /repo && gitleaks detect --source /repo --config /repo/.gitleaks.toml --no-banner --redact --verbose'
 
   docker:
     name: Docker images build
