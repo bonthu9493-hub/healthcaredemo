@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HospitalApi.Controllers;
 
 [ApiController, Route("api/auth"), AllowAnonymous, EnableRateLimiting("auth")]
-public class AuthController(AppDbContext db, TokenService tokens, AuditService audit) : ControllerBase
+public class AuthController(AppDbContext db, TokenService tokens, AuditService audit, PasswordService passwords) : ControllerBase
 {
     private const int MaxFailures = 5;
     private static readonly TimeSpan LockoutTime = TimeSpan.FromMinutes(15);
@@ -28,7 +28,7 @@ public class AuthController(AppDbContext db, TokenService tokens, AuditService a
         var user = new AppUser
         {
             Email = email, FullName = req.FullName.Trim(), Role = Roles.Patient,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+            PasswordHash = passwords.Hash(req.Password),
         };
         db.Users.Add(user);
         db.Patients.Add(new Patient { User = user, DateOfBirth = req.DateOfBirth, Phone = req.Phone.Trim() });

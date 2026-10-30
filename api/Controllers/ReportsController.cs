@@ -26,7 +26,7 @@ public class ReportsController(AppDbContext db, AttendanceClock clock, AuditServ
     private async Task<List<StaffReportRow>> StaffRows(DateOnly f, DateOnly t)
     {
         var staff = await db.Users.AsNoTracking()
-            .Where(u => u.Role == Roles.Doctor || u.Role == Roles.Nurse)
+            .Where(u => u.Role == Roles.Doctor || u.Role == Roles.Nurse || u.Role == Roles.Pharmacist || u.Role == Roles.LabTech)
             .OrderBy(u => u.FullName)
             .Select(u => new { u.Id, u.FullName, u.Role, u.CreatedAt }).ToListAsync();
         var records = (await db.AttendanceRecords.AsNoTracking()
@@ -118,6 +118,25 @@ public class ReportsController(AppDbContext db, AttendanceClock clock, AuditServ
             rows.Select(r => new[] { r.DoctorName, r.Specialty, r.Total.ToString(), r.Attended.ToString(),
                 r.NoShow.ToString(), r.Cancelled.ToString(), r.Upcoming.ToString(), r.Unmarked.ToString(),
                 r.AttendanceRate?.ToString("0.#", CultureInfo.InvariantCulture) ?? "" }));
+    }
+
+    // ---------- Billing summary ----------
+
+    /// <summary>Money collected (paid invoices), money still owed (open invoices), and revenue by source.</summary>
+    [HttpGet("billing")]
+    public async Task<ActionResult<BillingReport>> Billing(DateOnly? from, DateOnly? to)
+    {
+        if (!TryRange(from, to, out var f, out var t)) return BadRequest(new { error = "Invalid date range (max 366 days)." });
+        var startUtc = clock.StartOfDayUtc(f);
+        var endUtc = clock.StartOfDayUtc(t.AddDays(1));
+
+        var invoices = await db.Invoices.AsNoTracking().Include(i => i.Items)
+            .Where(i => i.CreatedAt >= startUtc && i.CreatedAt < endUtc && i.Status != InvoiceStatus.Void).ToListAsync();
+        var paid = invoices.Where(i => i.Status == InvoiceStatus.Paid).ToList();
+        var open = invoices.Where(i => i.Status == InvoiceStatus.Open).ToList();
+        var bySource = paid.SelectMany(i => i.Items).GroupBy(x => x.Source)
+            .Select(g => new BillingSourceRow(g.Key, g.Sum(x => x.Quantity * x.UnitPrice))).OrderByDescending(r => r.Revenue).ToList();
+        return new BillingReport(paid.Count, open.Count, paid.Sum(i => i.Total), open.Sum(i => i.Total), bySource);
     }
 
     // ---------- CSV helper ----------

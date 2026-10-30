@@ -26,6 +26,9 @@ public class NotificationService(AppDbContext db, IHubContext<NotificationsHub> 
     public Task<List<Guid>> NurseIds() =>
         db.Users.AsNoTracking().Where(u => u.Role == Roles.Nurse).Select(u => u.Id).ToListAsync();
 
+    public Task<List<Guid>> UserIdsInRole(string role) =>
+        db.Users.AsNoTracking().Where(u => u.Role == role).Select(u => u.Id).ToListAsync();
+
     public Task<List<Guid>> StaffIds() =>
         db.Users.AsNoTracking().Where(u => u.Role == Roles.Doctor || u.Role == Roles.Nurse).Select(u => u.Id).ToListAsync();
 

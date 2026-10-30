@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HospitalApi.Controllers;
 
 /// <summary>Doctors and nurses record their own shift. Nobody can record attendance for someone else.</summary>
-[ApiController, Route("api/attendance"), Authorize(Roles = $"{Roles.Doctor},{Roles.Nurse}")]
+[ApiController, Route("api/attendance"), Authorize(Roles = Roles.Staff)]
 public class AttendanceController(AppDbContext db, AttendanceClock clock, AuditService audit) : ControllerBase
 {
     private AttendanceDto ToDto(AttendanceRecord r) => new(r.Id, r.Date, r.CheckIn, r.CheckOut,

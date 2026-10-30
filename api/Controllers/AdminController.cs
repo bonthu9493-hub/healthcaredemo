@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HospitalApi.Controllers;
 
 [ApiController, Route("api/admin"), Authorize(Roles = Roles.Admin)]
-public class AdminController(AppDbContext db, AuditService audit) : ControllerBase
+public class AdminController(AppDbContext db, AuditService audit, PasswordService passwords) : ControllerBase
 {
     [HttpPost("doctors")]
     public async Task<ActionResult<DoctorDto>> CreateDoctor(CreateDoctorRequest req)
@@ -20,13 +20,32 @@ public class AdminController(AppDbContext db, AuditService audit) : ControllerBa
         var user = new AppUser
         {
             Email = email, FullName = req.FullName.Trim(), Role = Roles.Doctor,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+            PasswordHash = passwords.Hash(req.Password),
         };
-        var doctor = new Doctor { User = user, Specialty = req.Specialty.Trim() };
+        var doctor = new Doctor { User = user, Specialty = req.Specialty.Trim(), ConsultationFee = req.ConsultationFee };
         db.Doctors.Add(doctor);
         await db.SaveChangesAsync();
         await audit.LogAsync("CreateDoctor", "Doctor", doctor.Id.ToString());
-        return StatusCode(201, new DoctorDto(doctor.Id, user.FullName, doctor.Specialty));
+        return StatusCode(201, new DoctorDto(doctor.Id, user.FullName, doctor.Specialty, doctor.ConsultationFee));
+    }
+
+    /// <summary>Creates a nurse, pharmacist or lab technician. Only an admin can.</summary>
+    [HttpPost("staff")]
+    public async Task<ActionResult<UserDto>> CreateStaff(CreateStaffRequest req)
+    {
+        var email = req.Email.Trim().ToLowerInvariant();
+        if (await db.Users.AnyAsync(u => u.Email == email))
+            return BadRequest(new { error = "Email already in use." });
+
+        var user = new AppUser
+        {
+            Email = email, FullName = req.FullName.Trim(), Role = req.Role,
+            PasswordHash = passwords.Hash(req.Password),
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("CreateStaff", "User", user.Id.ToString());
+        return StatusCode(201, new UserDto(user.Id, user.Email, user.FullName, user.Role));
     }
 
     [HttpPost("nurses")]
@@ -39,7 +58,7 @@ public class AdminController(AppDbContext db, AuditService audit) : ControllerBa
         var user = new AppUser
         {
             Email = email, FullName = req.FullName.Trim(), Role = Roles.Nurse,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 12),
+            PasswordHash = passwords.Hash(req.Password),
         };
         db.Users.Add(user);
         await db.SaveChangesAsync();

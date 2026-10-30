@@ -5,7 +5,12 @@ public static class Roles
     public const string Patient = "Patient";
     public const string Doctor = "Doctor";
     public const string Nurse = "Nurse";
+    public const string Pharmacist = "Pharmacist";
+    public const string LabTech = "LabTech";
     public const string Admin = "Admin";
+
+    /// <summary>Everyone who works shifts and so has attendance.</summary>
+    public const string Staff = $"{Doctor},{Nurse},{Pharmacist},{LabTech}";
 }
 
 public static class AppointmentStatus
@@ -15,6 +20,158 @@ public static class AppointmentStatus
     public const string Cancelled = "Cancelled";
     public const string NoShow = "NoShow";
     public static readonly string[] All = [Scheduled, Completed, Cancelled, NoShow];
+}
+
+public static class PrescriptionStatus
+{
+    public const string Pending = "Pending";
+    public const string Dispensed = "Dispensed";
+    public const string Cancelled = "Cancelled";
+}
+
+public static class LabStatus
+{
+    public const string Ordered = "Ordered";
+    public const string Completed = "Completed";
+    public const string Cancelled = "Cancelled";
+}
+
+public static class InvoiceStatus
+{
+    public const string Open = "Open";
+    public const string Paid = "Paid";
+    public const string Void = "Void";
+}
+
+public static class InvoiceSource
+{
+    public const string Consultation = "Consultation";
+    public const string Medicine = "Medicine";
+    public const string Lab = "Lab";
+    public const string Bed = "Bed";
+    public const string Other = "Other";
+}
+
+public class Medicine
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string Strength { get; set; } = "";
+    public decimal UnitPrice { get; set; }
+    public int Stock { get; set; }
+    public int ReorderLevel { get; set; }
+    public DateOnly ExpiryDate { get; set; }
+}
+
+public class Prescription
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
+    public Patient Patient { get; set; } = null!;
+    public Guid DoctorId { get; set; }
+    public Doctor Doctor { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string Status { get; set; } = PrescriptionStatus.Pending;
+    public string Notes { get; set; } = "";
+    public Guid? DispensedByUserId { get; set; }
+    public DateTimeOffset? DispensedAt { get; set; }
+    public List<PrescriptionItem> Items { get; set; } = [];
+}
+
+public class PrescriptionItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PrescriptionId { get; set; }
+    public Prescription Prescription { get; set; } = null!;
+    public Guid MedicineId { get; set; }
+    public Medicine Medicine { get; set; } = null!;
+    public string Dosage { get; set; } = "";
+    public int DurationDays { get; set; }
+    public int Quantity { get; set; }
+}
+
+public class LabTest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public decimal Price { get; set; }
+}
+
+public class LabOrder
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
+    public Patient Patient { get; set; } = null!;
+    public Guid DoctorId { get; set; }
+    public Doctor Doctor { get; set; } = null!;
+    public Guid LabTestId { get; set; }
+    public LabTest LabTest { get; set; } = null!;
+    public decimal Price { get; set; }
+    public string Notes { get; set; } = "";
+    public string Status { get; set; } = LabStatus.Ordered;
+    public DateTimeOffset OrderedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? ResultText { get; set; }
+    public bool? Abnormal { get; set; }
+    public Guid? CompletedByUserId { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+}
+
+public class Invoice
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Number { get; set; } // assigned by the database (identity)
+    public Guid PatientId { get; set; }
+    public Patient Patient { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string Status { get; set; } = InvoiceStatus.Open;
+    public DateTimeOffset? PaidAt { get; set; }
+    public string? PaymentMethod { get; set; }
+    public Guid? PaidByUserId { get; set; }
+    public List<InvoiceItem> Items { get; set; } = [];
+    public decimal Total => Items.Sum(i => i.Quantity * i.UnitPrice);
+}
+
+public class InvoiceItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid InvoiceId { get; set; }
+    public Invoice Invoice { get; set; } = null!;
+    public string Source { get; set; } = InvoiceSource.Other;
+    public string Description { get; set; } = "";
+    public int Quantity { get; set; } = 1;
+    public decimal UnitPrice { get; set; }
+}
+
+public class Ward
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string Type { get; set; } = "General";
+    public decimal DailyRate { get; set; }
+    public List<Bed> Beds { get; set; } = [];
+}
+
+public class Bed
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid WardId { get; set; }
+    public Ward Ward { get; set; } = null!;
+    public string Label { get; set; } = "";
+}
+
+public class Admission
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
+    public Patient Patient { get; set; } = null!;
+    public Guid BedId { get; set; }
+    public Bed Bed { get; set; } = null!;
+    public Guid AdmittedByUserId { get; set; }
+    public DateTimeOffset AdmittedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string Reason { get; set; } = "";
+    public DateTimeOffset? DischargedAt { get; set; }
+    public Guid? DischargedByUserId { get; set; }
+    public string? DischargeSummary { get; set; }
 }
 
 public static class Severity
@@ -122,6 +279,11 @@ public class Patient
     public AppUser User { get; set; } = null!;
     public DateOnly DateOfBirth { get; set; }
     public string Phone { get; set; } = "";
+    public string? BloodGroup { get; set; }
+    public string Allergies { get; set; } = "";
+    public string ChronicConditions { get; set; } = "";
+    public string EmergencyContactName { get; set; } = "";
+    public string EmergencyContactPhone { get; set; } = "";
 }
 
 public class Doctor
@@ -130,6 +292,7 @@ public class Doctor
     public Guid UserId { get; set; }
     public AppUser User { get; set; } = null!;
     public string Specialty { get; set; } = "";
+    public decimal ConsultationFee { get; set; } = 500m;
 }
 
 public class Appointment

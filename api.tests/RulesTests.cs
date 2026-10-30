@@ -1,5 +1,6 @@
 using HospitalApi.Data;
 using HospitalApi.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace HospitalApi.Tests;
 
@@ -92,6 +93,54 @@ public class SchedulingTests
         Assert.NotNull(Scheduling.MatchingEntry(schedule, At(DayOfWeek.Monday, "09:40")));
         Assert.Null(Scheduling.MatchingEntry(schedule, At(DayOfWeek.Monday, "14:30")));
         Assert.NotNull(Scheduling.MatchingEntry(schedule, At(DayOfWeek.Monday, "15:00")));
+    }
+}
+
+public class PasswordServiceTests
+{
+    private sealed class FakeEnv(string name) : Microsoft.Extensions.Hosting.IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = name;
+        public string ApplicationName { get; set; } = "test";
+        public string ContentRootPath { get; set; } = ".";
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
+    }
+
+    private static PasswordService Make(string env, string? factor)
+    {
+        var cfg = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(factor is null ? [] : new Dictionary<string, string?> { ["Security:BcryptWorkFactor"] = factor }).Build();
+        return new PasswordService(cfg, new FakeEnv(env));
+    }
+
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Development")]
+    [InlineData("Staging")]
+    public void Outside_testing_the_strong_setting_cannot_be_lowered_by_configuration(string env) =>
+        Assert.Equal(12, Make(env, "4").WorkFactor);
+
+    [Fact]
+    public void Only_the_testing_environment_may_use_a_cheaper_setting_and_never_a_silly_one()
+    {
+        Assert.Equal(4, Make("Testing", "4").WorkFactor);
+        Assert.Equal(4, Make("Testing", "1").WorkFactor);    // floor
+        Assert.Equal(12, Make("Testing", "99").WorkFactor);  // never above production
+        Assert.Equal(12, Make("Testing", null).WorkFactor);
+        Assert.Equal(12, Make("Testing", "abc").WorkFactor);
+    }
+
+    [Fact]
+    public void Hashes_verify_and_are_salted()
+    {
+        var svc = Make("Testing", "4");
+        var a = svc.Hash("Secret12345");
+        var b = svc.Hash("Secret12345");
+
+        Assert.NotEqual(a, b);
+        Assert.True(BCrypt.Net.BCrypt.Verify("Secret12345", a));
+        Assert.False(BCrypt.Net.BCrypt.Verify("secret12345", a));
+        Assert.DoesNotContain("Secret12345", a);
     }
 }
 

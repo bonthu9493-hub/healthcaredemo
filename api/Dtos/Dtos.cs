@@ -40,6 +40,7 @@ public class CreateDoctorRequest
     public string Password { get; set; } = "";
     [Required, StringLength(100, MinimumLength = 2), NoHtml] public string FullName { get; set; } = "";
     [Required, StringLength(80, MinimumLength = 2), NoHtml] public string Specialty { get; set; } = "";
+    [Range(0, 100000)] public decimal ConsultationFee { get; set; } = 500;
 }
 
 public class CreateNurseRequest
@@ -51,7 +52,7 @@ public class CreateNurseRequest
     [Required, StringLength(100, MinimumLength = 2), NoHtml] public string FullName { get; set; } = "";
 }
 
-public record DoctorDto(Guid Id, string FullName, string Specialty);
+public record DoctorDto(Guid Id, string FullName, string Specialty, decimal ConsultationFee);
 public record UserDto(Guid Id, string Email, string FullName, string Role);
 
 public class CreateAppointmentRequest

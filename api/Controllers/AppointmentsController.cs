@@ -11,7 +11,7 @@ namespace HospitalApi.Controllers;
 
 [ApiController, Route("api/appointments"), Authorize]
 public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHub> hub, AuditService audit,
-    AttendanceClock clock, NotificationService notify) : ControllerBase
+    AttendanceClock clock, NotificationService notify, BillingService billing) : ControllerBase
 {
     private IQueryable<Appointment> Visible()
     {
@@ -114,6 +114,10 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
 
         appt.Status = req.Status;
         await db.SaveChangesAsync();
+        // An attended appointment is a billable consultation. (Only a Scheduled appointment can change, so this runs once.)
+        if (req.Status == AppointmentStatus.Completed)
+            await billing.AddChargeAsync(appt.PatientId, InvoiceSource.Consultation,
+                $"Consultation: {appt.Doctor.User.FullName} ({appt.Doctor.Specialty})", 1, appt.Doctor.ConsultationFee);
         await audit.LogAsync("UpdateAppointment", "Appointment", appt.Id.ToString());
 
         var dto = ToDto(appt);

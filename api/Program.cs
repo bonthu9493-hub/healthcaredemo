@@ -33,8 +33,10 @@ builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connection));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<BillingService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<AttendanceClock>();
+builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<IUserIdProvider, SubUserIdProvider>();
 
 builder.Services.AddControllers();

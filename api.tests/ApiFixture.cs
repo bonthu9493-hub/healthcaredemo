@@ -50,6 +50,7 @@ public sealed class ApiFixture : IAsyncLifetime
         ["Admin:Email"] = AdminEmail,
         ["Admin:Password"] = AdminPassword,
         // Tests create many accounts and log in a lot; the rate-limit behaviour has its own test with low limits.
+        ["Security:BcryptWorkFactor"] = "4", // honoured only in the "Testing" environment; production is always 12
         ["RateLimit:GlobalPerMinute"] = "100000",
         ["RateLimit:AuthPerMinute"] = "100000",
         ["RateLimit:EmergencyPerMinute"] = "100000",
@@ -136,6 +137,48 @@ public sealed class ApiFixture : IAsyncLifetime
         var userId = await Db(db => db.Users.Where(u => u.Email == email).Select(u => u.Id).FirstAsync());
         return new TestUser(email, StrongPassword, name, client, userId, userId);
     }
+
+    public async Task<TestUser> NewStaffAsync(string role)
+    {
+        var id = Unique();
+        var (email, name) = ($"{role.ToLowerInvariant()}.{id}@test.local", $"{role} {id}");
+        var admin = await AdminAsync();
+        var response = await admin.PostAsJsonAsync("/api/admin/staff", new { email, password = StrongPassword, fullName = name, role });
+        response.EnsureSuccessStatusCode();
+        var client = await LoginAsync(email, StrongPassword);
+        var userId = await Db(db => db.Users.Where(u => u.Email == email).Select(u => u.Id).FirstAsync());
+        return new TestUser(email, StrongPassword, name, client, userId, userId);
+    }
+
+    public Task<TestUser> NewPharmacistAsync() => NewStaffAsync("Pharmacist");
+    public Task<TestUser> NewLabTechAsync() => NewStaffAsync("LabTech");
+
+    public async Task<MedicineDto> NewMedicineAsync(TestUser pharmacist, string? name = null, int stock = 100, decimal price = 10m,
+        int reorder = 5, DateOnly? expiry = null)
+    {
+        var response = await pharmacist.Client.PostAsJsonAsync("/api/medicines", new
+        {
+            name = name ?? $"Med {Unique()}", strength = "500 mg", unitPrice = price, stock, reorderLevel = reorder,
+            expiryDate = expiry ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+        });
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<MedicineDto>())!;
+    }
+
+    private static readonly Random Rng = new();
+
+    /// <summary>Gives the doctor and patient a treating relationship (an appointment), which unlocks prescribing, ordering, and so on.</summary>
+    public async Task TreatAsync(TestUser patient, TestUser doctor)
+    {
+        var response = await BookAsync(patient, doctor.ProfileId, TestTime.InDays(Rng.Next(20, 400), Rng.Next(8, 20)));
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<List<InvoiceDto>> InvoicesAsync(HttpClient client, string? status = null) =>
+        (await ReadPaged<InvoiceDto>(await client.GetAsync("/api/invoices?pageSize=100" + (status is null ? "" : $"&status={status}")))).Items;
+
+    public static async Task<HospitalApi.Services.PagedResult<T>> ReadPaged<T>(HttpResponseMessage r) =>
+        (await r.Content.ReadFromJsonAsync<HospitalApi.Services.PagedResult<T>>())!;
 
     public Task<HttpResponseMessage> BookAsync(TestUser patient, Guid doctorId, DateTimeOffset when, string reason = "Routine checkup") =>
         patient.Client.PostAsJsonAsync("/api/appointments", new { doctorId, startsAt = when, reason });

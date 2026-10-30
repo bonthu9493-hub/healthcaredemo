@@ -19,6 +19,9 @@ public static class PagingExtensions
         return new PagedResult<T>(items, total, page, pageSize);
     }
 
+    public static PagedResult<U> Map<T, U>(this PagedResult<T> page, Func<T, U> map) =>
+        new(page.Items.Select(map).ToList(), page.Total, page.Page, page.PageSize);
+
     /// <summary>Trims and length-limits a search term; returns null when there is nothing to search for.</summary>
     public static string? CleanSearch(string? q)
     {

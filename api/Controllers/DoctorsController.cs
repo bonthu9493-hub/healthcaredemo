@@ -13,7 +13,7 @@ public class DoctorsController(AppDbContext db, AttendanceClock clock) : Control
     [HttpGet]
     public async Task<IEnumerable<DoctorDto>> List() =>
         await db.Doctors.AsNoTracking().OrderBy(d => d.User.FullName)
-            .Select(d => new DoctorDto(d.Id, d.User.FullName, d.Specialty)).ToListAsync();
+            .Select(d => new DoctorDto(d.Id, d.User.FullName, d.Specialty, d.ConsultationFee)).ToListAsync();
 
     /// <summary>Free, bookable slots for one doctor on one day. If the doctor has no schedule yet, any time is allowed.</summary>
     [HttpGet("{id:guid}/slots")]

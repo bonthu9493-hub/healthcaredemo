@@ -15,6 +15,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<QueueToken> QueueTokens => Set<QueueToken>();
     public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();
+    public DbSet<Medicine> Medicines => Set<Medicine>();
+    public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<PrescriptionItem> PrescriptionItems => Set<PrescriptionItem>();
+    public DbSet<LabTest> LabTests => Set<LabTest>();
+    public DbSet<LabOrder> LabOrders => Set<LabOrder>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
+    public DbSet<Ward> Wards => Set<Ward>();
+    public DbSet<Bed> Beds => Set<Bed>();
+    public DbSet<Admission> Admissions => Set<Admission>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -54,6 +64,95 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
         });
+        b.Entity<Patient>(e =>
+        {
+            e.Property(x => x.BloodGroup).HasMaxLength(3);
+            e.Property(x => x.Allergies).HasMaxLength(500);
+            e.Property(x => x.ChronicConditions).HasMaxLength(500);
+            e.Property(x => x.EmergencyContactName).HasMaxLength(100);
+            e.Property(x => x.EmergencyContactPhone).HasMaxLength(20);
+        });
+        b.Entity<Doctor>().Property(x => x.ConsultationFee).HasPrecision(10, 2);
+
+        b.Entity<Medicine>(e =>
+        {
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.Strength).HasMaxLength(50);
+            e.Property(x => x.UnitPrice).HasPrecision(10, 2);
+        });
+        b.Entity<Prescription>(e =>
+        {
+            e.HasIndex(x => new { x.PatientId, x.CreatedAt });
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<PrescriptionItem>(e =>
+        {
+            e.Property(x => x.Dosage).HasMaxLength(200);
+            e.HasOne(x => x.Prescription).WithMany(p => p.Items).HasForeignKey(x => x.PrescriptionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Medicine).WithMany().HasForeignKey(x => x.MedicineId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<LabTest>(e =>
+        {
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.Price).HasPrecision(10, 2);
+        });
+        b.Entity<LabOrder>(e =>
+        {
+            e.HasIndex(x => new { x.PatientId, x.OrderedAt });
+            e.Property(x => x.Price).HasPrecision(10, 2);
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.Property(x => x.ResultText).HasMaxLength(2000);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.LabTest).WithMany().HasForeignKey(x => x.LabTestId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Invoice>(e =>
+        {
+            e.Property(x => x.Number).UseIdentityColumn();
+            e.HasIndex(x => x.Number).IsUnique();
+            e.HasIndex(x => new { x.PatientId, x.Status });
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.Property(x => x.PaymentMethod).HasMaxLength(10);
+            e.Ignore(x => x.Total);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<InvoiceItem>(e =>
+        {
+            e.Property(x => x.Source).HasMaxLength(15);
+            e.Property(x => x.Description).HasMaxLength(200);
+            e.Property(x => x.UnitPrice).HasPrecision(10, 2);
+            e.HasOne(x => x.Invoice).WithMany(i => i.Items).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<Ward>(e =>
+        {
+            e.HasIndex(x => x.Name).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(60);
+            e.Property(x => x.Type).HasMaxLength(30);
+            e.Property(x => x.DailyRate).HasPrecision(10, 2);
+        });
+        b.Entity<Bed>(e =>
+        {
+            e.HasIndex(x => new { x.WardId, x.Label }).IsUnique();
+            e.Property(x => x.Label).HasMaxLength(30);
+            e.HasOne(x => x.Ward).WithMany(w => w.Beds).HasForeignKey(x => x.WardId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<Admission>(e =>
+        {
+            // The database itself guarantees one active admission per bed and per patient, even under races.
+            e.HasIndex(x => x.BedId).IsUnique().HasFilter("[DischargedAt] IS NULL");
+            e.HasIndex(x => x.PatientId).IsUnique().HasFilter("[DischargedAt] IS NULL");
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.Property(x => x.DischargeSummary).HasMaxLength(2000);
+            e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Bed).WithMany().HasForeignKey(x => x.BedId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         b.Entity<VitalSign>(e =>
         {
             e.HasIndex(x => new { x.PatientId, x.RecordedAt });
