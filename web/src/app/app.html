@@ -9,12 +9,24 @@
   <a class="brand" routerLink="/">+ MediCare HMS</a>
   @if (auth.session(); as s) {
     <nav>
-      <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
-      <a routerLink="/queue" routerLinkActive="active">Queue</a>
-      @if (s.role !== 'Admin') { <a routerLink="/vitals" routerLinkActive="active">Vitals</a> }
+      @if (s.role === 'Patient' || s.role === 'Doctor' || s.role === 'Nurse' || s.role === 'Admin') {
+        <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
+        <a routerLink="/queue" routerLinkActive="active">Queue</a>
+      }
+      @if (s.role === 'Patient' || s.role === 'Doctor' || s.role === 'Nurse') { <a routerLink="/vitals" routerLinkActive="active">Vitals</a> }
       @if (s.role === 'Patient' || s.role === 'Doctor') { <a routerLink="/records" routerLinkActive="active">Records</a> }
+      @if (s.role === 'Patient' || s.role === 'Doctor') { <a routerLink="/prescriptions" routerLinkActive="active">Prescriptions</a> }
+      @if (s.role === 'Patient' || s.role === 'Doctor' || s.role === 'LabTech') { <a routerLink="/lab" routerLinkActive="active">Lab</a> }
+      @if (s.role === 'Pharmacist' || s.role === 'Admin') { <a routerLink="/pharmacy" routerLinkActive="active">Pharmacy</a> }
+      @if (s.role === 'Patient' || s.role === 'Doctor' || s.role === 'Nurse' || s.role === 'Admin') {
+        <a routerLink="/wards" routerLinkActive="active">{{ s.role === 'Patient' ? 'My stays' : 'Wards' }}</a>
+      }
+      @if (s.role === 'Patient' || s.role === 'Nurse' || s.role === 'Admin') { <a routerLink="/billing" routerLinkActive="active">{{ s.role === 'Patient' ? 'My bills' : 'Billing' }}</a> }
+      @if (s.role === 'Patient') { <a routerLink="/profile" routerLinkActive="active">My profile</a> }
       @if (s.role === 'Doctor') { <a routerLink="/schedule" routerLinkActive="active">Schedule</a> }
-      @if (s.role === 'Doctor' || s.role === 'Nurse') { <a routerLink="/attendance" routerLinkActive="active">My attendance</a> }
+      @if (s.role === 'Doctor' || s.role === 'Nurse' || s.role === 'Pharmacist' || s.role === 'LabTech') {
+        <a routerLink="/attendance" routerLinkActive="active">My attendance</a>
+      }
       @if (s.role === 'Admin') {
         <a routerLink="/admin" routerLinkActive="active">Admin</a>
         <a routerLink="/reports" routerLinkActive="active">Reports</a>
@@ -44,7 +56,7 @@
         </div>
       }
     </div>
-    <span class="who">{{ s.fullName }} <small>({{ s.role }})</small></span>
+    <span class="who">{{ s.fullName }} <small>({{ s.role === 'LabTech' ? 'Lab technician' : s.role }})</small></span>
     <button class="small" (click)="logout()">Sign out</button>
   }
 </header>

@@ -20,7 +20,7 @@ import { Realtime } from '../core/realtime';
           <label>Doctor
             <select name="doctor" [(ngModel)]="form.doctorId" (ngModelChange)="loadSlots()" required>
               <option value="" disabled>Select…</option>
-              @for (d of doctors(); track d.id) { <option [value]="d.id">{{ d.fullName }} — {{ d.specialty }}</option> }
+              @for (d of doctors(); track d.id) { <option [value]="d.id">{{ d.fullName }} — {{ d.specialty }} (fee Rs. {{ d.consultationFee }})</option> }
             </select>
           </label>
           <label>Date <input type="date" name="date" [(ngModel)]="form.date" (ngModelChange)="loadSlots()" required [min]="today" /></label>

@@ -38,6 +38,36 @@ public class SecurityTests(ApiFixture api)
         Assert.False(evil.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    [InlineData("PUT")]    // profile and doctor schedule save with PUT; a browser silently blocks it if CORS doesn't allow it
+    [InlineData("PATCH")]
+    public async Task Cors_allows_every_method_the_web_app_actually_uses(string method)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Options, "/api/profile/me");
+        request.Headers.Add("Origin", "http://localhost:4200");
+        request.Headers.Add("Access-Control-Request-Method", method);
+        request.Headers.Add("Access-Control-Request-Headers", "authorization,content-type");
+
+        var response = await api.Anonymous().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Contains(method, response.Headers.GetValues("Access-Control-Allow-Methods").Single().Split(','));
+    }
+
+    [Fact]
+    public async Task Cors_still_refuses_methods_the_web_app_never_uses()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Options, "/api/profile/me");
+        request.Headers.Add("Origin", "http://localhost:4200");
+        request.Headers.Add("Access-Control-Request-Method", "DELETE");
+
+        var response = await api.Anonymous().SendAsync(request);
+
+        Assert.False(response.Headers.Contains("Access-Control-Allow-Methods") && response.Headers.GetValues("Access-Control-Allow-Methods").Single().Contains("DELETE"));
+    }
+
     [Fact]
     public async Task Login_is_rate_limited()
     {

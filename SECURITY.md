@@ -29,6 +29,14 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 | Automated checks | CI builds and tests every push, fails on known-vulnerable NuGet/npm packages, scans the full git history for secrets (gitleaks), and runs with a read-only token. The test database password is generated per run, never stored. Dependabot proposes dependency updates. |
 | Containers | Images run as a non-root user with all Linux capabilities dropped and `no-new-privileges`. The database port is not published. Secrets come from a git-ignored `.env`. The web image sends the same CSP and security headers from nginx. |
 | Production build vs CSP | The production build used to inject an inline script (for the stylesheet) which our CSP blocks. This is turned off (`inlineCritical: false`) so the strict CSP works in production, not only in development. |
+| Clinical data | Patient profile, prescriptions, lab results, invoices and admissions are each filtered by the caller's own id and role on every query; admins cannot read clinical records or prescriptions. Nurses and doctors get a bedside summary that omits phone number and date of birth. Everything read or written is audit-logged. |
+| Medication safety | A prescription that matches a recorded allergy is refused (409) until the doctor deliberately overrides, and the override is audit-logged. Expired medicines can be neither prescribed nor dispensed. |
+| Money and stock integrity | Dispensing, paying, voiding, discharging and entering a lab result are single guarded SQL updates inside a transaction, so a double click or two staff at once can't dispense twice, take stock below zero, pay twice, or bill twice. A paid invoice is frozen. Failed steps roll everything back. Invoice numbers come from a database sequence. |
+| Beds | The database has a unique rule (one active admission per bed and per patient), so a race can't put two patients in one bed. |
+| PDF receipts | Generated on the server with escaped text (a patient name can't inject PDF commands); a patient can only download their own; no external service or font files involved. |
+| Staff roles | Pharmacists and lab technicians can only be created by an admin through a role allow-list that cannot produce an Admin or Doctor. |
+| CORS methods | Only GET, POST, PUT and PATCH from the web app's origin (a test fails if the app needs a method that's blocked). |
+| Password hashing cost | BCrypt work factor is always 12 in production; only the "Testing" environment may lower it, so thousands of test accounts don't take minutes. |
 | Audit trail | Logins, failed logins, bookings and all medical record reads/writes are logged with user and IP. |
 | Exposed files | The API serves no static files or directory listings. Only source files are tracked in git. |
 

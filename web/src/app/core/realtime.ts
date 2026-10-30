@@ -15,6 +15,7 @@ export class Realtime {
   readonly notifications = new Subject<NotificationItem>();
   readonly vitals = new Subject<VitalsRow>();
   readonly queueChanged = new Subject<void>();
+  readonly bedsChanged = new Subject<void>();
 
   async start() {
     if (this.hub) return;
@@ -28,6 +29,7 @@ export class Realtime {
     hub.on('notification', (n: NotificationItem) => this.notifications.next(n));
     hub.on('vitalsRecorded', (v: VitalsRow) => this.vitals.next(v));
     hub.on('queueChanged', () => this.queueChanged.next());
+    hub.on('bedsChanged', () => this.bedsChanged.next());
     this.hub = hub;
     try {
       await hub.start();

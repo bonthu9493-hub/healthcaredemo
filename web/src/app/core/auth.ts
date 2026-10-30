@@ -5,7 +5,10 @@ import { tap } from 'rxjs';
 
 export const API = 'http://localhost:5098';
 
-export type Role = 'Patient' | 'Doctor' | 'Nurse' | 'Admin';
+export type Role = 'Patient' | 'Doctor' | 'Nurse' | 'Pharmacist' | 'LabTech' | 'Admin';
+
+/** Where each role lands after signing in. */
+export const homeFor = (role: Role | null) => (role === 'Pharmacist' ? '/pharmacy' : role === 'LabTech' ? '/lab' : '/appointments');
 
 export interface Session {
   token: string;
@@ -78,7 +81,8 @@ export const authGuard: CanActivateFn = () => {
 export const roleGuard =
   (...roles: Role[]): CanActivateFn =>
   () => {
-    const auth = inject(Auth);
-    const role = auth.role();
-    return role && roles.includes(role) ? true : inject(Router).parseUrl('/');
+    const role = inject(Auth).role();
+    const router = inject(Router);
+    if (!role) return router.parseUrl('/login');          // not signed in
+    return roles.includes(role) ? true : router.parseUrl('/'); // signed in, but not allowed here: back to your own home page
   };

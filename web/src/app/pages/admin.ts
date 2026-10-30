@@ -14,6 +14,7 @@ import { Pager } from '../ui/pager';
       <div class="row">
         <label>Full name <input name="n" [(ngModel)]="m.fullName" required minlength="2" maxlength="100" pattern="[^<>]*" /></label>
         <label>Specialty <input name="s" [(ngModel)]="m.specialty" required minlength="2" maxlength="80" pattern="[^<>]*" /></label>
+        <label>Consultation fee (Rs.) <input type="number" name="fee" [(ngModel)]="m.consultationFee" required min="0" max="100000" /></label>
       </div>
       <div class="row">
         <label>Email <input type="email" name="e" [(ngModel)]="m.email" required maxlength="254" autocomplete="off" /></label>
@@ -24,17 +25,22 @@ import { Pager } from '../ui/pager';
     </form>
 
     <form class="card" (ngSubmit)="createNurse()" #nf="ngForm">
-      <h2>Add a nurse</h2>
+      <h2>Add a nurse, pharmacist or lab technician</h2>
       @if (nurseError()) { <p class="error" role="alert">{{ nurseError() }}</p> }
       @if (nurseOk()) { <p class="ok" role="status">{{ nurseOk() }}</p> }
       <div class="row">
+        <label>Role
+          <select name="nr" [(ngModel)]="n.role">
+            <option value="Nurse">Nurse</option><option value="Pharmacist">Pharmacist</option><option value="LabTech">Lab technician</option>
+          </select>
+        </label>
         <label>Full name <input name="nn" [(ngModel)]="n.fullName" required minlength="2" maxlength="100" pattern="[^<>]*" /></label>
         <label>Email <input type="email" name="ne" [(ngModel)]="n.email" required maxlength="254" autocomplete="off" /></label>
       </div>
       <label>Temporary password <input type="password" name="np" [(ngModel)]="n.password" required minlength="10" maxlength="128"
         pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+" autocomplete="new-password" />
         <small class="muted">10+ characters with upper case, lower case and a number.</small></label>
-      <button [disabled]="nf.invalid">Create nurse</button>
+      <button [disabled]="nf.invalid">Create account</button>
     </form>
 
     <div class="card">
@@ -44,7 +50,7 @@ import { Pager } from '../ui/pager';
           placeholder="Search name or email" aria-label="Search users" />
         <select [(ngModel)]="roleFilter" (ngModelChange)="goUsers(1)" aria-label="Filter by role">
           <option value="">All roles</option>
-          <option>Patient</option><option>Doctor</option><option>Nurse</option><option>Admin</option>
+          <option>Patient</option><option>Doctor</option><option>Nurse</option><option>Pharmacist</option><option>LabTech</option><option>Admin</option>
         </select>
       </div>
       <table>
@@ -89,10 +95,10 @@ export class Admin implements OnInit {
   private timers: Record<string, ReturnType<typeof setTimeout> | undefined> = {};
   error = signal('');
   ok = signal('');
-  m = { fullName: '', specialty: '', email: '', password: '' };
+  m = { fullName: '', specialty: '', email: '', password: '', consultationFee: 500 };
   nurseError = signal('');
   nurseOk = signal('');
-  n = { fullName: '', email: '', password: '' };
+  n = { role: 'Nurse', fullName: '', email: '', password: '' };
 
   ngOnInit() { this.refresh(); }
 
@@ -127,8 +133,8 @@ export class Admin implements OnInit {
 
   createNurse() {
     this.nurseError.set(''); this.nurseOk.set('');
-    this.api.createNurse(this.n).subscribe({
-      next: (u) => { this.nurseOk.set(`Nurse ${u.fullName} created.`); this.n = { fullName: '', email: '', password: '' }; this.refresh(); },
+    this.api.createStaff(this.n).subscribe({
+      next: (u) => { this.nurseOk.set(`${u.role} ${u.fullName} created.`); this.n = { role: this.n.role, fullName: '', email: '', password: '' }; this.refresh(); },
       error: (e) => this.nurseError.set(errorText(e)),
     });
   }
@@ -136,7 +142,7 @@ export class Admin implements OnInit {
   create() {
     this.error.set(''); this.ok.set('');
     this.api.createDoctor(this.m).subscribe({
-      next: (d) => { this.ok.set(`Dr ${d.fullName} created.`); this.m = { fullName: '', specialty: '', email: '', password: '' }; this.refresh(); },
+      next: (d) => { this.ok.set(`Dr ${d.fullName} created.`); this.m = { fullName: '', specialty: '', email: '', password: '', consultationFee: 500 }; this.refresh(); },
       error: (e) => this.error.set(errorText(e)),
     });
   }

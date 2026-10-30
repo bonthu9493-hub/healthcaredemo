@@ -12,7 +12,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
       <p class="muted">Patients can only book the slots generated from these windows. With no schedule, patients may pick any time.</p>
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
       @if (ok()) { <p class="ok" role="status">{{ ok() }}</p> }
-      @for (e of rows; track e; let i = $index) {
+      @for (e of rows(); track e; let i = $index) {
         <div class="row">
           <label>Day
             <select [name]="'d' + i" [(ngModel)]="e.day">
@@ -40,20 +40,21 @@ export class Schedule implements OnInit {
   private api = inject(Api);
   days = DAYS;
   lengths = [10, 15, 20, 30, 45, 60];
-  rows: ScheduleEntry[] = [];
+  // A signal (not a plain field) so the page redraws when the rows arrive from the server.
+  rows = signal<ScheduleEntry[]>([]);
   error = signal('');
   ok = signal('');
 
-  ngOnInit() { this.api.mySchedule().subscribe((s) => (this.rows = s)); }
+  ngOnInit() { this.api.mySchedule().subscribe((s) => this.rows.set(s)); }
 
-  add() { this.rows = [...this.rows, { day: 1, start: '10:00', end: '13:00', slotMinutes: 30 }]; }
-  remove(i: number) { this.rows = this.rows.filter((_, idx) => idx !== i); }
+  add() { this.rows.update((r) => [...r, { day: 1, start: '10:00', end: '13:00', slotMinutes: 30 }]); }
+  remove(i: number) { this.rows.update((r) => r.filter((_, idx) => idx !== i)); }
 
   save() {
     this.error.set('');
     this.ok.set('');
-    this.api.saveSchedule(this.rows).subscribe({
-      next: (s) => { this.rows = s; this.ok.set('Schedule saved.'); },
+    this.api.saveSchedule(this.rows()).subscribe({
+      next: (s) => { this.rows.set(s); this.ok.set('Schedule saved.'); },
       error: (e) => this.error.set(errorText(e)),
     });
   }

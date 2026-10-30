@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { Api, PatientLookup, VitalsRow, errorText } from '../core/api';
+import { Api, PatientLookup, PatientSummary, VitalsRow, errorText } from '../core/api';
 import { Auth } from '../core/auth';
 import { Realtime } from '../core/realtime';
 
@@ -27,6 +27,14 @@ import { Realtime } from '../core/realtime';
       </div>
 
       @if (selected(); as p) {
+        @if (summary(); as s) {
+          <p class="card safety" [class.warn]="s.allergies">
+            <span><strong>{{ s.fullName }}</strong>, {{ s.age }} years</span>
+            <span><strong>Blood group:</strong> {{ s.bloodGroup || 'unknown' }}</span>
+            <span><strong>Allergies:</strong> {{ s.allergies || 'none recorded' }}</span>
+            <span><strong>Conditions:</strong> {{ s.chronicConditions || 'none recorded' }}</span>
+          </p>
+        }
         <form class="card" (ngSubmit)="record()" #f="ngForm">
           <h2>Record vitals for {{ p.fullName }}</h2>
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -85,6 +93,7 @@ export class Vitals implements OnInit, OnDestroy {
 
   patients = signal<PatientLookup[]>([]);
   selected = signal<PatientLookup | null>(null);
+  summary = signal<PatientSummary | null>(null);
   rows = signal<VitalsRow[]>([]);
   error = signal('');
   ok = signal('');
@@ -117,6 +126,8 @@ export class Vitals implements OnInit, OnDestroy {
 
   select(p: PatientLookup) {
     this.selected.set(p);
+    this.summary.set(null);
+    this.api.patientSummary(p.id).subscribe((s) => this.summary.set(s));
     this.ok.set('');
     this.error.set('');
     this.load();

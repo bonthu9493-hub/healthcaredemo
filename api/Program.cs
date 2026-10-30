@@ -79,7 +79,7 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .WithOrigins(corsOrigins)
     .WithHeaders("Authorization", "Content-Type", "X-Requested-With", "X-SignalR-User-Agent")
-    .WithMethods("GET", "POST", "PATCH")
+    .WithMethods("GET", "POST", "PUT", "PATCH")
     .AllowCredentials()));
 
 builder.Services.AddRateLimiter(o =>

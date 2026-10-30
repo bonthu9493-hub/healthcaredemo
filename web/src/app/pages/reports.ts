@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Api, AppointmentReportRow, ReportKind, StaffReportRow, errorText } from '../core/api';
+import { Api, AppointmentReportRow, BillingReport, ReportKind, StaffReportRow, errorText } from '../core/api';
+import { money, saveBlob } from '../core/download';
 
 const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
@@ -16,6 +17,22 @@ const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).t
       </div>
       <button (click)="run()">Run reports</button>
     </div>
+
+    @if (billing(); as b) {
+      <div class="card">
+        <h2>Billing <small class="muted">(invoices created in this period, void ones excluded)</small></h2>
+        <div class="grid5">
+          <div><div class="serving small-num">Rs. {{ money(b.revenue) }}</div><small class="muted">collected · {{ b.paidInvoices }} paid</small></div>
+          <div><div class="serving small-num owed">Rs. {{ money(b.outstanding) }}</div><small class="muted">still owed · {{ b.openInvoices }} unpaid</small></div>
+        </div>
+        @if (b.bySource.length) {
+          <table>
+            <thead><tr><th>Collected by source</th><th>Amount</th></tr></thead>
+            <tbody>@for (r of b.bySource; track r.source) { <tr><td>{{ r.source }}</td><td>Rs. {{ money(r.revenue) }}</td></tr> }</tbody>
+          </table>
+        }
+      </div>
+    }
 
     <div class="card">
       <h2>Staff attendance <small class="muted">(weekdays only; late = after 09:00 + 15 min)</small></h2>
@@ -63,6 +80,8 @@ export class Reports implements OnInit {
   today = iso(new Date());
   to = this.today;
   from = iso(new Date(Date.now() - 29 * 86400000));
+  readonly money = money;
+  billing = signal<BillingReport | null>(null);
   staff = signal<StaffReportRow[]>([]);
   appts = signal<AppointmentReportRow[]>([]);
   error = signal('');
@@ -71,6 +90,7 @@ export class Reports implements OnInit {
 
   run() {
     this.error.set('');
+    this.api.billingReport(this.from, this.to).subscribe({ next: (r) => this.billing.set(r), error: (e) => this.error.set(errorText(e)) });
     this.api.staffReport(this.from, this.to).subscribe({ next: (r) => this.staff.set(r), error: (e) => this.error.set(errorText(e)) });
     this.api.appointmentReport(this.from, this.to).subscribe({ next: (r) => this.appts.set(r), error: (e) => this.error.set(errorText(e)) });
   }
@@ -78,14 +98,7 @@ export class Reports implements OnInit {
   /** The CSV endpoint needs the login token, so fetch it through HttpClient and save the blob. */
   download(kind: ReportKind) {
     this.api.reportCsv(kind, this.from, this.to).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${kind}_${this.from}_to_${this.to}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      },
+      next: (blob) => saveBlob(blob, `${kind}_${this.from}_to_${this.to}.csv`),
       error: (e) => this.error.set(errorText(e)),
     });
   }

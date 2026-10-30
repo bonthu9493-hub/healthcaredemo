@@ -13,8 +13,9 @@ A full-stack hospital management app with **real-time** appointment notification
 
 - **Patients** register, book appointments with doctors, cancel them, and read their own medical records.
 - **Doctors** see their appointments, mark them complete/cancelled, view only the patients they have an appointment with, and write medical records.
-- **Nurses** (created by an admin) can view all appointments, read-only. They cannot change appointments, read medical records or see the patient list.
-- **Admins** create doctor and nurse accounts, list users, and review the audit log. Admins cannot read clinical records.
+- **Nurses** (created by an admin) can view all appointments, read-only. They cannot change appointments or read medical records. They record vitals, issue queue tokens, admit patients, take payments and can search patients by name.
+- **Pharmacists** and **lab technicians** (created by an admin) each get their own page and see only what their job needs.
+- **Admins** create doctor, nurse, pharmacist and lab technician accounts, list users, and review the audit log. Admins cannot read clinical records.
 - **Staff attendance:** doctors and nurses check in and out of their shift (**My attendance** page). Admins get a per-person report for any date range (weekdays present/absent, hours worked, late arrivals, missing check-outs) and can download it as CSV. Hospital time zone, shift start and grace period are configured under `Attendance` in `api/appsettings.json`.
 - **Appointment attendance:** doctors mark a past appointment **Attended** or **No-show**. Admins get a per-doctor report (attended, no-show, cancelled, upcoming, not yet marked, attendance rate) with CSV export. Once an appointment is no longer Scheduled it can't be changed, so the history stays trustworthy.
 - **Live vitals:** nurses (and doctors for their own patients) record heart rate, blood pressure, oxygen and temperature. The server grades each reading Normal / Warning / Critical and, if abnormal, alerts the patient's doctors and all nurses instantly. Patients can see their own readings and a heart-rate trend.
@@ -25,6 +26,11 @@ A full-stack hospital management app with **real-time** appointment notification
 - **Real time:** when a patient books, the doctor's screen shows a toast and refreshes instantly. When a doctor completes or cancels, the patient is notified (SignalR WebSockets).
 - **Audit log** of logins, failed logins, bookings and every read/write of medical records.
 
+- **Patient profile:** each patient keeps their blood group, allergies, long-term conditions and emergency contact. Doctors and nurses see a bedside summary (never the phone number or date of birth).
+- **Pharmacy and prescriptions:** a **Pharmacist** keeps the medicine catalogue (price, stock, reorder level, expiry; low-stock and expiring flags). Doctors prescribe to their own patients, with an **allergy check** that blocks a matching medicine until the doctor explicitly overrides (the override is audit-logged). The pharmacist dispenses: stock is taken, the patient is billed and notified, all or nothing, and never twice.
+- **Lab:** doctors order tests from a catalogue; a **Lab technician** enters the result (flagged normal or abnormal); the doctor and patient are notified and the test is billed.
+- **Billing and PDF receipts:** charges (consultation fee when an appointment is attended, medicines, lab tests, bed days, manual extras) collect on one open invoice per patient. The front desk (nurse or admin) marks it paid (cash, card or UPI), after which it is frozen. Patients download their own invoice or receipt as a PDF; admins see a revenue and outstanding-balance summary.
+- **Wards and beds:** admins set up wards (with a daily rate) and beds. Doctors and nurses admit patients; the database itself prevents two patients in one bed. A doctor discharges with a summary, which frees the bed and bills the stay by started days. The board updates live.
 - **Search and paging:** appointments, medical records, users and the audit log are searched, filtered and paged on the server (page size capped at 100), always inside what the signed-in user is allowed to see.
 
 ## Project layout
@@ -78,7 +84,7 @@ Sign in as the seeded admin, add a doctor, then register a patient from the logi
 ## Running the tests
 
 ```bash
-# API: 100+ tests. They start the real API in memory against a throwaway database
+# API: 180+ tests. They start the real API in memory against a throwaway database
 # (created and deleted automatically). Defaults to local SQL Express; use TEST_SQL_CONNECTION for another server.
 # Stop the running API first, or the build can't replace its files.
 dotnet test api.tests
@@ -88,7 +94,7 @@ cd web
 npm test -- --watch=false
 ```
 
-The tests cover login and lockout, who may see or change what (patients, doctors, nurses, admins), double-booking, schedules and slots, vitals thresholds, code blue, the queue, attendance reports (including CSV formula protection), security headers, CORS and rate limiting. They have been checked to fail when the code is broken (for example, the bug where a status change returned success but was not saved).
+The tests cover the allergy check, all-or-nothing dispensing (including two pharmacists clicking at once), billing and payment rules, PDF structure, bed double-booking races, login and lockout, who may see or change what (patients, doctors, nurses, admins), double-booking, schedules and slots, vitals thresholds, code blue, the queue, attendance reports (including CSV formula protection), security headers, CORS and rate limiting. They have been checked to fail when the code is broken (for example, the bug where a status change returned success but was not saved).
 
 ## Docker (one command)
 
@@ -125,8 +131,30 @@ Open http://localhost:4200. The API is on http://localhost:5098. The Docker setu
 | GET/PUT | `/api/schedule/me` | doctors |
 | GET | `/api/doctors/{id}/slots?date=` | any signed-in user |
 | GET | `/api/patients/lookup?q=` | nurses, admins (id and name only) |
-| GET | `/api/attendance/me` | doctors, nurses (own shifts) |
-| POST | `/api/attendance/check-in`, `/api/attendance/check-out` | doctors, nurses |
+| GET/PUT | `/api/profile/me` | patients (own profile) |
+| GET | `/api/patients/{id}/summary` | nurses; doctors for their own patients |
+| GET | `/api/medicines?q=&low=` | doctors, pharmacists, admins |
+| POST | `/api/medicines`, `/api/medicines/{id}/restock` | pharmacists, admins |
+| GET | `/api/prescriptions` | patients (own), doctors (own), pharmacists (all) |
+| POST | `/api/prescriptions`, `/api/prescriptions/{id}/cancel` | doctors |
+| POST | `/api/prescriptions/{id}/dispense` | pharmacists |
+| GET | `/api/labs/tests` | doctors, lab technicians, admins |
+| POST | `/api/labs/tests` | lab technicians, admins |
+| GET | `/api/labs/orders` | patients (own), doctors (own), lab technicians (all) |
+| POST | `/api/labs/orders`, `/api/labs/orders/{id}/cancel` | doctors |
+| POST | `/api/labs/orders/{id}/result` | lab technicians |
+| GET | `/api/invoices`, `/api/invoices/{id}`, `/api/invoices/{id}/pdf` | patients (own), nurses, admins |
+| POST | `/api/invoices/{id}/items`, `/api/invoices/{id}/pay` | nurses, admins |
+| POST | `/api/invoices/{id}/void` | admins |
+| GET | `/api/wards` | doctors, nurses, admins |
+| POST | `/api/wards`, `/api/wards/{id}/beds` | admins |
+| POST | `/api/admissions` | doctors (own patients), nurses |
+| POST | `/api/admissions/{id}/discharge` | doctors |
+| GET | `/api/admissions/me` | patients (own) |
+| POST | `/api/admin/staff` | admins (Nurse, Pharmacist or LabTech) |
+| GET | `/api/admin/reports/billing?from=&to=` | admins |
+| GET | `/api/attendance/me` | all staff (own shifts) |
+| POST | `/api/attendance/check-in`, `/api/attendance/check-out` | doctors, nurses, pharmacists, lab technicians |
 | GET | `/api/admin/reports/staff-attendance[.csv]?from=&to=` | admins |
 | GET | `/api/admin/reports/appointment-attendance[.csv]?from=&to=` | admins |
 | WS | `/hubs/notifications` | signed-in users |

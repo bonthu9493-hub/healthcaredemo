@@ -71,6 +71,25 @@ tr.Critical td { background:#fff4f2; } tr.Warning td { background:#fffaf0; }
 .toolbar { display:grid; grid-template-columns:1fr minmax(150px,200px); gap:8px; }
 .toolbar:has(> :only-child) { grid-template-columns:1fr; }
 .pager { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+/* clinical pages */
+.check { display:flex; align-items:center; gap:8px; font-weight:500; }
+.check input { width:auto; }
+.qty { width:80px; }
+.grow { flex:1; min-width:180px; }
+.line { align-items:end; }
+.line .who { align-self:center; }
+.record ul { margin:4px 0 8px; padding-left:20px; }
+.record .result { background:#f1f6fa; padding:8px 10px; border-radius:6px; }
+.record header { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.inv-head .amount { margin-left:auto; }
+.safety { display:flex; flex-wrap:wrap; gap:6px 18px; margin:0; background:#eef8f7; border-color:#bfe3df; }
+.safety.warn { background:#fff4f2; border-color:#f1c2bb; }
+.warnbox { background:#fff4f2; padding:10px; border-radius:6px; border:1px solid #f1c2bb; }
+.bed { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; margin-top:8px; background:#f1faf3; }
+.bed.occupied { background:#fff8ec; }
+.bed .free { color:#1d7a3a; font-weight:600; }
+.small-num { font-size:30px; }
+.owed { color:#9a5b00; }
 /* slots */
 .slots { display:flex; flex-wrap:wrap; gap:8px; }
 .slot { background:#e8eef4; color:var(--ink); } .slot.picked { background:var(--brand); color:#fff; }

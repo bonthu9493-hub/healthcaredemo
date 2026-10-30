@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { API, Auth, Session, authGuard, authInterceptor, roleGuard } from './auth';
+import { API, Auth, Session, authGuard, authInterceptor, homeFor, roleGuard } from './auth';
 
 const KEY = 'hms.session';
 const future = () => new Date(Date.now() + 30 * 60_000).toISOString();
@@ -136,8 +136,16 @@ describe('route guards', () => {
     expect(String(run(roleGuard('Admin')))).toBe('/');
   });
 
-  it('roleGuard refuses someone who is signed out', () => {
+  it('roleGuard sends someone who is signed out to the login page (not in a loop through "/")', () => {
     setup();
-    expect(String(run(roleGuard('Patient')))).toBe('/');
+    expect(String(run(roleGuard('Patient')))).toBe('/login');
+  });
+
+  it('every role has its own landing page', () => {
+    expect(homeFor('Pharmacist')).toBe('/pharmacy');
+    expect(homeFor('LabTech')).toBe('/lab');
+    expect(homeFor('Patient')).toBe('/appointments');
+    expect(homeFor('Admin')).toBe('/appointments');
+    expect(homeFor(null)).toBe('/appointments');
   });
 });
