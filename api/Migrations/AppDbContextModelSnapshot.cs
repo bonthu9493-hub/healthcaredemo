@@ -99,6 +99,32 @@ namespace HospitalApi.Migrations
                     b.ToTable("Appointments");
                 });
 
+            modelBuilder.Entity("HospitalApi.Data.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CheckIn")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CheckOut")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("AttendanceRecords");
+                });
+
             modelBuilder.Entity("HospitalApi.Data.AuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -239,6 +265,17 @@ namespace HospitalApi.Migrations
                     b.Navigation("Doctor");
 
                     b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("HospitalApi.Data.AttendanceRecord", b =>
+                {
+                    b.HasOne("HospitalApi.Data.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("HospitalApi.Data.Doctor", b =>

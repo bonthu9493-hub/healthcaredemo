@@ -33,6 +33,7 @@ builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlServer(connection));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<AttendanceClock>();
 builder.Services.AddSingleton<IUserIdProvider, SubUserIdProvider>();
 
 builder.Services.AddControllers();

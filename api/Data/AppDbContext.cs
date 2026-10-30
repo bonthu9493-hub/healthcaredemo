@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -48,6 +49,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Notes).HasMaxLength(4000);
             e.HasOne(x => x.Patient).WithMany().HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Doctor).WithMany().HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<AttendanceRecord>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Date }).IsUnique();
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<AuditLog>(e =>
         {

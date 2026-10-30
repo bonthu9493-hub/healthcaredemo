@@ -18,6 +18,20 @@ export interface AuditRow {
   ip: string | null; at: string;
 }
 
+export interface AttendanceRow {
+  id: string; date: string; checkIn: string; checkOut: string | null; hours: number | null; late: boolean;
+}
+export interface AttendanceSummary { today: AttendanceRow | null; history: AttendanceRow[] }
+export interface StaffReportRow {
+  userId: string; fullName: string; role: string; workingDays: number; daysPresent: number;
+  daysAbsent: number; totalHours: number; lateCount: number; missingCheckOut: number;
+}
+export interface AppointmentReportRow {
+  doctorId: string; doctorName: string; specialty: string; total: number; attended: number; noShow: number;
+  cancelled: number; upcoming: number; unmarked: number; attendanceRate: number | null;
+}
+export type ReportKind = 'staff-attendance' | 'appointment-attendance';
+
 @Injectable({ providedIn: 'root' })
 export class Api {
   private http = inject(HttpClient);
@@ -37,6 +51,15 @@ export class Api {
     this.http.post<Doctor>(this.u('/admin/doctors'), b);
   createNurse = (b: { email: string; password: string; fullName: string }) =>
     this.http.post<UserRow>(this.u('/admin/nurses'), b);
+  attendanceMe = () => this.http.get<AttendanceSummary>(this.u('/attendance/me'));
+  checkIn = () => this.http.post<AttendanceRow>(this.u('/attendance/check-in'), {});
+  checkOut = () => this.http.post<AttendanceRow>(this.u('/attendance/check-out'), {});
+  staffReport = (from: string, to: string) =>
+    this.http.get<StaffReportRow[]>(this.u('/admin/reports/staff-attendance'), { params: { from, to } });
+  appointmentReport = (from: string, to: string) =>
+    this.http.get<AppointmentReportRow[]>(this.u('/admin/reports/appointment-attendance'), { params: { from, to } });
+  reportCsv = (kind: ReportKind, from: string, to: string) =>
+    this.http.get(this.u(`/admin/reports/${kind}.csv`), { params: { from, to }, responseType: 'blob' });
   users = () => this.http.get<UserRow[]>(this.u('/admin/users'));
   audit = () => this.http.get<AuditRow[]>(this.u('/admin/audit'));
 }

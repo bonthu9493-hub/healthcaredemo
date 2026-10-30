@@ -79,6 +79,15 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
         if (User.RoleName() == Roles.Patient && req.Status != AppointmentStatus.Cancelled)
             return Forbid();
 
+        // Attendance history must stay trustworthy: only a Scheduled appointment can change,
+        // and a no-show can only be recorded once the appointment time has passed.
+        if (appt.Status != AppointmentStatus.Scheduled)
+            return Conflict(new { error = $"This appointment is already {appt.Status} and can't be changed." });
+        if (req.Status == AppointmentStatus.NoShow && appt.StartsAt > DateTimeOffset.UtcNow)
+            return BadRequest(new { error = "A future appointment can't be marked as a no-show." });
+        if (req.Status == AppointmentStatus.Scheduled)
+            return BadRequest(new { error = "Invalid status." });
+
         appt.Status = req.Status;
         await db.SaveChangesAsync();
         await audit.LogAsync("UpdateAppointment", "Appointment", appt.Id.ToString());

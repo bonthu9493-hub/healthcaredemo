@@ -43,10 +43,13 @@ import { Realtime } from '../core/realtime';
               <td>{{ a.patientName }}</td>
               <td>{{ a.doctorName }} <small class="muted">({{ a.specialty }})</small></td>
               <td>{{ a.reason }}</td>
-              <td><span class="badge {{ a.status }}">{{ a.status }}</span></td>
+              <td><span class="badge {{ a.status }}">{{ a.status === 'NoShow' ? 'No-show' : a.status }}</span></td>
               <td class="actions">
                 @if (a.status === 'Scheduled' && auth.role() !== 'Nurse') {
-                  @if (auth.role() !== 'Patient') { <button class="small" (click)="set(a, 'Completed')">Complete</button> }
+                  @if (auth.role() !== 'Patient') {
+                    <button class="small" (click)="set(a, 'Completed')">Attended</button>
+                    @if (isPast(a)) { <button class="small danger" (click)="set(a, 'NoShow')">No-show</button> }
+                  }
                   <button class="small danger" (click)="set(a, 'Cancelled')">Cancel</button>
                 }
               </td>
@@ -82,6 +85,8 @@ export class Appointments implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() { this.sub?.unsubscribe(); }
+
+  isPast(a: Appointment) { return new Date(a.startsAt) <= new Date(); }
 
   load() { this.api.appointments().subscribe((a) => this.items.set(a)); }
 

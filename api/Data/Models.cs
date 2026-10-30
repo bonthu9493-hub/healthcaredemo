@@ -13,7 +13,19 @@ public static class AppointmentStatus
     public const string Scheduled = "Scheduled";
     public const string Completed = "Completed";
     public const string Cancelled = "Cancelled";
-    public static readonly string[] All = [Scheduled, Completed, Cancelled];
+    public const string NoShow = "NoShow";
+    public static readonly string[] All = [Scheduled, Completed, Cancelled, NoShow];
+}
+
+/// <summary>One shift for one staff member (doctor/nurse). At most one record per person per day.</summary>
+public class AttendanceRecord
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public AppUser User { get; set; } = null!;
+    public DateOnly Date { get; set; }
+    public DateTimeOffset CheckIn { get; set; }
+    public DateTimeOffset? CheckOut { get; set; }
 }
 
 public class AppUser

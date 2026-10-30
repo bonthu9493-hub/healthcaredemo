@@ -80,5 +80,12 @@ public class CreateRecordRequest
 public record RecordDto(Guid Id, Guid PatientId, string PatientName, string DoctorName, string Diagnosis,
     string Prescription, string Notes, DateTimeOffset CreatedAt);
 
+public record AttendanceDto(Guid Id, DateOnly Date, DateTimeOffset CheckIn, DateTimeOffset? CheckOut, double? Hours, bool Late);
+public record AttendanceSummary(AttendanceDto? Today, List<AttendanceDto> History);
+public record StaffReportRow(Guid UserId, string FullName, string Role, int WorkingDays, int DaysPresent,
+    int DaysAbsent, double TotalHours, int LateCount, int MissingCheckOut);
+public record AppointmentReportRow(Guid DoctorId, string DoctorName, string Specialty, int Total, int Attended,
+    int NoShow, int Cancelled, int Upcoming, int Unmarked, double? AttendanceRate);
+
 public record PatientDto(Guid Id, string FullName, DateOnly DateOfBirth, string Phone);
 public record AuditDto(long Id, Guid? UserId, string Action, string Entity, string? EntityId, string? Ip, DateTimeOffset At);

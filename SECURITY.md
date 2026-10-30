@@ -20,6 +20,7 @@ Last audited: 2026-10-29. Automated checks and manual testing against the runnin
 | Security headers | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy`, `Cross-Origin-Resource-Policy`, `Cache-Control: no-store`, HSTS + HTTPS redirect outside Development. Server header removed. |
 | No debug mode | No developer exception page; errors are generic ProblemDetails with no stack traces in any environment. EF SQL command logging is off. |
 | Database | EF parameterised queries, length limits and unique indexes, FK `Restrict` deletes, encrypted connection (`Encrypt=True`), Windows authentication locally (no DB password). Use a least-privilege SQL login in production. |
+| Attendance & reports | Staff can only record their own check-in/out (identity comes from the token, never the request). Reports are admin-only, limited to a 366-day range, and every CSV export is audit-logged. CSV cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets can't run injected formulas. No-show can't be set on a future appointment, and finished appointments can't be edited. |
 | Audit trail | Logins, failed logins, bookings and all medical record reads/writes are logged with user and IP. |
 | Exposed files | The API serves no static files or directory listings. Only source files are tracked in git. |
 

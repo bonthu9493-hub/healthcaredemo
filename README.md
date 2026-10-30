@@ -15,6 +15,8 @@ A full-stack hospital management app with **real-time** appointment notification
 - **Doctors** see their appointments, mark them complete/cancelled, view only the patients they have an appointment with, and write medical records.
 - **Nurses** (created by an admin) can view all appointments, read-only. They cannot change appointments, read medical records or see the patient list.
 - **Admins** create doctor and nurse accounts, list users, and review the audit log. Admins cannot read clinical records.
+- **Staff attendance:** doctors and nurses check in and out of their shift (**My attendance** page). Admins get a per-person report for any date range (weekdays present/absent, hours worked, late arrivals, missing check-outs) and can download it as CSV. Hospital time zone, shift start and grace period are configured under `Attendance` in `api/appsettings.json`.
+- **Appointment attendance:** doctors mark a past appointment **Attended** or **No-show**. Admins get a per-doctor report (attended, no-show, cancelled, upcoming, not yet marked, attendance rate) with CSV export. Once an appointment is no longer Scheduled it can't be changed, so the history stays trustworthy.
 - **Real time:** when a patient books, the doctor's screen shows a toast and refreshes instantly. When a doctor completes or cancels, the patient is notified (SignalR WebSockets).
 - **Audit log** of logins, failed logins, bookings and every read/write of medical records.
 
@@ -74,6 +76,10 @@ Sign in as the seeded admin, add a doctor, then register a patient from the logi
 | GET | `/api/records` | patient (own) / doctor (own patients) |
 | POST | `/api/records`, GET `/api/patients` | doctors |
 | POST | `/api/admin/doctors`, `/api/admin/nurses`, GET `/api/admin/users`, `/api/admin/audit` | admins |
+| GET | `/api/attendance/me` | doctors, nurses (own shifts) |
+| POST | `/api/attendance/check-in`, `/api/attendance/check-out` | doctors, nurses |
+| GET | `/api/admin/reports/staff-attendance[.csv]?from=&to=` | admins |
+| GET | `/api/admin/reports/appointment-attendance[.csv]?from=&to=` | admins |
 | WS | `/hubs/notifications` | signed-in users |
 
 ## Security
