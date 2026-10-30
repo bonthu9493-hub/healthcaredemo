@@ -84,15 +84,20 @@ builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     static string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    // Limits are configurable (RateLimit:*) so automated tests can raise them; the defaults are the production values.
+    int Limit(string key, int fallback) => int.TryParse(cfg[$"RateLimit:{key}"], out var v) && v > 0 ? v : fallback;
+    var global = Limit("GlobalPerMinute", 120);
+    var emergency = Limit("EmergencyPerMinute", 5);
+    var authLimit = Limit("AuthPerMinute", 10);
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(c =>
         RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
-        { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+        { PermitLimit = global, Window = TimeSpan.FromMinutes(1) }));
     // Code blue must not be spammable
     o.AddPolicy("emergency", c => RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
-    { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+    { PermitLimit = emergency, Window = TimeSpan.FromMinutes(1) }));
     // Brute-force protection for register/login
     o.AddPolicy("auth", c => RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
-    { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+    { PermitLimit = authLimit, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -128,3 +133,6 @@ app.MapHub<NotificationsHub>("/hubs/notifications");
 
 await Bootstrap.RunAsync(app);
 app.Run();
+
+// Lets the integration-test project start the whole app in memory (WebApplicationFactory<Program>).
+public partial class Program;

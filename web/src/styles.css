@@ -67,6 +67,10 @@ tr.Critical td { background:#fff4f2; } tr.Warning td { background:#fffaf0; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chip { background:#e8eef4; border-radius:999px; padding:3px 12px; font-weight:600; }
 .chip.mine { background:var(--brand); color:#fff; }
+/* search + paging */
+.toolbar { display:grid; grid-template-columns:1fr minmax(150px,200px); gap:8px; }
+.toolbar:has(> :only-child) { grid-template-columns:1fr; }
+.pager { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 /* slots */
 .slots { display:flex; flex-wrap:wrap; gap:8px; }
 .slot { background:#e8eef4; color:var(--ink); } .slot.picked { background:var(--brand); color:#fff; }

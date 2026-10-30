@@ -1,11 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Api, MedicalRecord, PatientRow, errorText } from '../core/api';
+import { Api, MedicalRecord, PAGE_SIZE, PatientRow, errorText } from '../core/api';
+import { Pager } from '../ui/pager';
 import { Auth } from '../core/auth';
 
 @Component({
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, Pager],
   template: `
     @if (auth.role() === 'Doctor') {
       <form class="card" (ngSubmit)="add()" #f="ngForm">
@@ -26,7 +27,11 @@ import { Auth } from '../core/auth';
 
     <div class="card">
       <h2>{{ auth.role() === 'Doctor' ? 'Records of my patients' : 'My medical records' }}</h2>
-      @if (!items().length) { <p class="muted">No records.</p> }
+      <div class="toolbar">
+        <input type="search" [(ngModel)]="q" (ngModelChange)="onSearch()" maxlength="100"
+          placeholder="Search diagnosis, prescription or patient" aria-label="Search records" />
+      </div>
+      @if (!items().length) { <p class="muted">{{ q ? 'No records match your search.' : 'No records.' }}</p> }
       @for (r of items(); track r.id) {
         <article class="record">
           <header><strong>{{ r.patientName }}</strong> <span class="muted">· {{ r.doctorName }} · {{ r.createdAt | date: 'medium' }}</span></header>
@@ -35,6 +40,7 @@ import { Auth } from '../core/auth';
           @if (r.notes) { <p class="muted">{{ r.notes }}</p> }
         </article>
       }
+      <app-pager [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="goTo($event)" />
     </div>
   `,
 })
@@ -42,6 +48,11 @@ export class Records implements OnInit {
   auth = inject(Auth);
   private api = inject(Api);
   items = signal<MedicalRecord[]>([]);
+  total = signal(0);
+  page = signal(1);
+  pageSize = PAGE_SIZE;
+  q = '';
+  private searchTimer?: ReturnType<typeof setTimeout>;
   patients = signal<PatientRow[]>([]);
   error = signal('');
   m = { patientId: '', diagnosis: '', prescription: '', notes: '' };
@@ -51,7 +62,20 @@ export class Records implements OnInit {
     if (this.auth.role() === 'Doctor') this.api.myPatients().subscribe((p) => this.patients.set(p));
   }
 
-  load() { this.api.records().subscribe((r) => this.items.set(r)); }
+  load() {
+    this.api.records({ q: this.q.trim(), page: this.page() }).subscribe((r) => {
+      if (!r.items.length && r.page > 1) { this.goTo(r.page - 1); return; }
+      this.items.set(r.items);
+      this.total.set(r.total);
+    });
+  }
+
+  goTo(p: number) { this.page.set(p); this.load(); }
+
+  onSearch() {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.goTo(1), 300);
+  }
 
   add() {
     this.error.set('');

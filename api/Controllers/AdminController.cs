@@ -48,12 +48,23 @@ public class AdminController(AppDbContext db, AuditService audit) : ControllerBa
     }
 
     [HttpGet("users")]
-    public async Task<IEnumerable<UserDto>> Users() =>
-        await db.Users.AsNoTracking().OrderBy(u => u.FullName)
-            .Select(u => new UserDto(u.Id, u.Email, u.FullName, u.Role)).ToListAsync();
+    public async Task<PagedResult<UserDto>> Users(string? q, string? role, int page = 1, int pageSize = 20)
+    {
+        var query = db.Users.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(role)) query = query.Where(u => u.Role == role);
+        if (PagingExtensions.CleanSearch(q) is { } term)
+            query = query.Where(u => u.FullName.Contains(term) || u.Email.Contains(term));
+        return await query.OrderBy(u => u.FullName)
+            .Select(u => new UserDto(u.Id, u.Email, u.FullName, u.Role)).ToPagedAsync(page, pageSize);
+    }
 
     [HttpGet("audit")]
-    public async Task<IEnumerable<AuditDto>> Audit() =>
-        await db.AuditLogs.AsNoTracking().OrderByDescending(a => a.At).Take(200)
-            .Select(a => new AuditDto(a.Id, a.UserId, a.Action, a.Entity, a.EntityId, a.Ip, a.At)).ToListAsync();
+    public async Task<PagedResult<AuditDto>> Audit(string? q, int page = 1, int pageSize = 50)
+    {
+        var query = db.AuditLogs.AsNoTracking().AsQueryable();
+        if (PagingExtensions.CleanSearch(q) is { } term)
+            query = query.Where(a => a.Action.Contains(term) || a.Entity.Contains(term));
+        return await query.OrderByDescending(a => a.At)
+            .Select(a => new AuditDto(a.Id, a.UserId, a.Action, a.Entity, a.EntityId, a.Ip, a.At)).ToPagedAsync(page, pageSize);
+    }
 }

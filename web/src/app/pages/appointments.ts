@@ -2,12 +2,13 @@ import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { Api, Appointment, Doctor, SlotsResponse, errorText } from '../core/api';
+import { Api, Appointment, Doctor, PAGE_SIZE, SlotsResponse, errorText } from '../core/api';
+import { Pager } from '../ui/pager';
 import { Auth } from '../core/auth';
 import { Realtime } from '../core/realtime';
 
 @Component({
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, Pager],
   template: `
     @if (toast()) { <div class="toast" role="status">{{ toast() }}</div> }
 
@@ -44,7 +45,18 @@ import { Realtime } from '../core/realtime';
 
     <div class="card">
       <h2>{{ auth.role() === 'Admin' || auth.role() === 'Nurse' ? 'All appointments' : 'My appointments' }} <span class="live" title="Updates arrive in real time">● live</span></h2>
-      @if (!items().length) { <p class="muted">No appointments yet.</p> }
+      <div class="toolbar">
+        <input type="search" [(ngModel)]="q" (ngModelChange)="onSearch()" maxlength="100"
+          placeholder="Search patient, doctor or reason" aria-label="Search appointments" />
+        <select [(ngModel)]="status" (ngModelChange)="goTo(1)" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="Scheduled">Scheduled</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+          <option value="NoShow">No-show</option>
+        </select>
+      </div>
+      @if (!items().length) { <p class="muted">{{ q || status ? 'No appointments match your filters.' : 'No appointments yet.' }}</p> }
       <table>
         @if (items().length) {
           <thead><tr><th>When</th><th>Patient</th><th>Doctor</th><th>Reason</th><th>Status</th><th></th></tr></thead>
@@ -70,6 +82,7 @@ import { Realtime } from '../core/realtime';
           }
         </tbody>
       </table>
+      <app-pager [page]="page()" [pageSize]="pageSize" [total]="total()" (pageChange)="goTo($event)" />
     </div>
   `,
 })
@@ -80,6 +93,12 @@ export class Appointments implements OnInit, OnDestroy {
   private sub?: Subscription;
 
   items = signal<Appointment[]>([]);
+  total = signal(0);
+  page = signal(1);
+  pageSize = PAGE_SIZE;
+  q = '';
+  status = '';
+  private searchTimer?: ReturnType<typeof setTimeout>;
   doctors = signal<Doctor[]>([]);
   error = signal('');
   toast = signal('');
@@ -102,7 +121,20 @@ export class Appointments implements OnInit, OnDestroy {
 
   isPast(a: Appointment) { return new Date(a.startsAt) <= new Date(); }
 
-  load() { this.api.appointments().subscribe((a) => this.items.set(a)); }
+  load() {
+    this.api.appointments({ q: this.q.trim(), status: this.status, page: this.page() }).subscribe((r) => {
+      if (!r.items.length && r.page > 1) { this.goTo(r.page - 1); return; } // last item of the page was removed
+      this.items.set(r.items);
+      this.total.set(r.total);
+    });
+  }
+
+  goTo(p: number) { this.page.set(p); this.load(); }
+
+  onSearch() {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.goTo(1), 300);
+  }
 
   loadSlots() {
     this.form.when = '';

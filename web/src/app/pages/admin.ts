@@ -1,10 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Api, AuditRow, UserRow, errorText } from '../core/api';
+import { Api, AuditRow, PAGE_SIZE, UserRow, errorText } from '../core/api';
+import { Pager } from '../ui/pager';
 
 @Component({
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, Pager],
   template: `
     <form class="card" (ngSubmit)="create()" #f="ngForm">
       <h2>Add a doctor</h2>
@@ -38,14 +39,28 @@ import { Api, AuditRow, UserRow, errorText } from '../core/api';
 
     <div class="card">
       <h2>Users</h2>
+      <div class="toolbar">
+        <input type="search" [(ngModel)]="userQ" (ngModelChange)="onUserSearch()" maxlength="100"
+          placeholder="Search name or email" aria-label="Search users" />
+        <select [(ngModel)]="roleFilter" (ngModelChange)="goUsers(1)" aria-label="Filter by role">
+          <option value="">All roles</option>
+          <option>Patient</option><option>Doctor</option><option>Nurse</option><option>Admin</option>
+        </select>
+      </div>
       <table>
         <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
         <tbody>@for (u of users(); track u.id) { <tr><td>{{ u.fullName }}</td><td>{{ u.email }}</td><td>{{ u.role }}</td></tr> }</tbody>
       </table>
+      @if (!users().length) { <p class="muted">No users match.</p> }
+      <app-pager [page]="userPage()" [pageSize]="pageSize" [total]="userTotal()" (pageChange)="goUsers($event)" />
     </div>
 
     <div class="card">
-      <h2>Audit log <small class="muted">(latest 200)</small></h2>
+      <h2>Audit log</h2>
+      <div class="toolbar">
+        <input type="search" [(ngModel)]="auditQ" (ngModelChange)="onAuditSearch()" maxlength="100"
+          placeholder="Search action or entity (e.g. Login, CodeBlue)" aria-label="Search audit log" />
+      </div>
       <table>
         <thead><tr><th>Time</th><th>Action</th><th>Entity</th><th>User</th><th>IP</th></tr></thead>
         <tbody>
@@ -54,13 +69,24 @@ import { Api, AuditRow, UserRow, errorText } from '../core/api';
           }
         </tbody>
       </table>
+      @if (!audit().length) { <p class="muted">No entries match.</p> }
+      <app-pager [page]="auditPage()" [pageSize]="20" [total]="auditTotal()" (pageChange)="goAudit($event)" />
     </div>
   `,
 })
 export class Admin implements OnInit {
   private api = inject(Api);
+  pageSize = PAGE_SIZE;
   users = signal<UserRow[]>([]);
+  userTotal = signal(0);
+  userPage = signal(1);
+  userQ = '';
+  roleFilter = '';
   audit = signal<AuditRow[]>([]);
+  auditTotal = signal(0);
+  auditPage = signal(1);
+  auditQ = '';
+  private timers: Record<string, ReturnType<typeof setTimeout> | undefined> = {};
   error = signal('');
   ok = signal('');
   m = { fullName: '', specialty: '', email: '', password: '' };
@@ -71,8 +97,32 @@ export class Admin implements OnInit {
   ngOnInit() { this.refresh(); }
 
   refresh() {
-    this.api.users().subscribe((u) => this.users.set(u));
-    this.api.audit().subscribe((a) => this.audit.set(a));
+    this.goUsers(this.userPage());
+    this.goAudit(this.auditPage());
+  }
+
+  goUsers(p: number) {
+    this.userPage.set(p);
+    this.api.users({ q: this.userQ.trim(), role: this.roleFilter, page: p }).subscribe((r) => {
+      this.users.set(r.items);
+      this.userTotal.set(r.total);
+    });
+  }
+
+  goAudit(p: number) {
+    this.auditPage.set(p);
+    this.api.audit({ q: this.auditQ.trim(), page: p }).subscribe((r) => {
+      this.audit.set(r.items);
+      this.auditTotal.set(r.total);
+    });
+  }
+
+  onUserSearch() { this.debounce('u', () => this.goUsers(1)); }
+  onAuditSearch() { this.debounce('a', () => this.goAudit(1)); }
+
+  private debounce(key: string, fn: () => void) {
+    clearTimeout(this.timers[key]);
+    this.timers[key] = setTimeout(fn, 300);
   }
 
   createNurse() {

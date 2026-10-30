@@ -12,7 +12,7 @@ public class RecordsController(AppDbContext db, AuditService audit) : Controller
 {
     /// <summary>Patients: own records. Doctors: records of patients they have an appointment with. Admins: none (clinical data is not admin-readable).</summary>
     [HttpGet("records"), Authorize(Roles = $"{Roles.Patient},{Roles.Doctor}")]
-    public async Task<IEnumerable<RecordDto>> List()
+    public async Task<PagedResult<RecordDto>> List([FromQuery(Name = "q")] string? search, int page = 1, int pageSize = 20)
     {
         var uid = User.UserId();
         var q = db.MedicalRecords.AsNoTracking();
@@ -20,9 +20,12 @@ public class RecordsController(AppDbContext db, AuditService audit) : Controller
             ? q.Where(r => db.Appointments.Any(a => a.Doctor.UserId == uid && a.PatientId == r.PatientId))
             : q.Where(r => r.Patient.UserId == uid);
 
+        if (PagingExtensions.CleanSearch(search) is { } term)
+            q = q.Where(r => r.Diagnosis.Contains(term) || r.Prescription.Contains(term) || r.Patient.User.FullName.Contains(term));
+
         var list = await q.OrderByDescending(r => r.CreatedAt)
             .Select(r => new RecordDto(r.Id, r.PatientId, r.Patient.User.FullName, r.Doctor.User.FullName,
-                r.Diagnosis, r.Prescription, r.Notes, r.CreatedAt)).ToListAsync();
+                r.Diagnosis, r.Prescription, r.Notes, r.CreatedAt)).ToPagedAsync(page, pageSize);
         await audit.LogAsync("ReadRecords", "MedicalRecord");
         return list;
     }

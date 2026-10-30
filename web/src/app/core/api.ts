@@ -32,6 +32,16 @@ export interface AppointmentReportRow {
 }
 export type ReportKind = 'staff-attendance' | 'appointment-attendance';
 
+export interface Paged<T> { items: T[]; total: number; page: number; pageSize: number }
+export const PAGE_SIZE = 10;
+
+/** Builds query params, leaving out empty values. */
+export function query(values: Record<string, string | number | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values)) if (v !== undefined && v !== '') out[k] = String(v);
+  return out;
+}
+
 export interface NotificationItem { id: string; type: string; message: string; createdAt: string; read: boolean }
 export interface NotificationList { items: NotificationItem[]; unread: number }
 export interface VitalsRow {
@@ -51,12 +61,15 @@ export class Api {
   private u = (p: string) => `${API}/api${p}`;
 
   doctors = () => this.http.get<Doctor[]>(this.u('/doctors'));
-  appointments = () => this.http.get<Appointment[]>(this.u('/appointments'));
+  appointments = (f: { q?: string; status?: string; page?: number } = {}) =>
+    this.http.get<Paged<Appointment>>(this.u('/appointments'),
+      { params: query({ q: f.q, status: f.status, page: f.page ?? 1, pageSize: PAGE_SIZE }) });
   book = (b: { doctorId: string; startsAt: string; reason: string }) =>
     this.http.post<Appointment>(this.u('/appointments'), b);
   setStatus = (id: string, status: string) =>
     this.http.patch<Appointment>(this.u(`/appointments/${id}/status`), { status });
-  records = () => this.http.get<MedicalRecord[]>(this.u('/records'));
+  records = (f: { q?: string; page?: number } = {}) =>
+    this.http.get<Paged<MedicalRecord>>(this.u('/records'), { params: query({ q: f.q, page: f.page ?? 1, pageSize: PAGE_SIZE }) });
   addRecord = (b: { patientId: string; diagnosis: string; prescription: string; notes: string }) =>
     this.http.post<MedicalRecord>(this.u('/records'), b);
   myPatients = () => this.http.get<PatientRow[]>(this.u('/patients'));
@@ -90,8 +103,11 @@ export class Api {
   saveSchedule = (entries: ScheduleEntry[]) => this.http.put<ScheduleEntry[]>(this.u('/schedule/me'), entries);
   slots = (doctorId: string, date: string) =>
     this.http.get<SlotsResponse>(this.u(`/doctors/${doctorId}/slots`), { params: { date } });
-  users = () => this.http.get<UserRow[]>(this.u('/admin/users'));
-  audit = () => this.http.get<AuditRow[]>(this.u('/admin/audit'));
+  users = (f: { q?: string; role?: string; page?: number } = {}) =>
+    this.http.get<Paged<UserRow>>(this.u('/admin/users'),
+      { params: query({ q: f.q, role: f.role, page: f.page ?? 1, pageSize: PAGE_SIZE }) });
+  audit = (f: { q?: string; page?: number } = {}) =>
+    this.http.get<Paged<AuditRow>>(this.u('/admin/audit'), { params: query({ q: f.q, page: f.page ?? 1, pageSize: 20 }) });
 }
 
 /** Server error body is { error } for our checks; fall back to a generic message. */

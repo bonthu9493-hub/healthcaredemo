@@ -28,10 +28,20 @@ public class AppointmentsController(AppDbContext db, IHubContext<NotificationsHu
     private static AppointmentDto ToDto(Appointment a) => new(a.Id, a.PatientId, a.Patient.User.FullName,
         a.DoctorId, a.Doctor.User.FullName, a.Doctor.Specialty, a.StartsAt, a.Reason, a.Status);
 
+    /// <summary>Newest first. Filtering and paging happen in SQL, on top of the "only what I may see" scope.</summary>
     [HttpGet]
-    public async Task<IEnumerable<AppointmentDto>> List() =>
-        (await Visible().Include(a => a.Patient.User).Include(a => a.Doctor.User)
-            .OrderBy(a => a.StartsAt).ToListAsync()).Select(ToDto);
+    public async Task<PagedResult<AppointmentDto>> List(string? q, string? status, int page = 1, int pageSize = 20)
+    {
+        var query = Visible();
+        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(a => a.Status == status);
+        if (PagingExtensions.CleanSearch(q) is { } term)
+            query = query.Where(a => a.Patient.User.FullName.Contains(term) || a.Doctor.User.FullName.Contains(term)
+                || a.Reason.Contains(term));
+        return await query.OrderByDescending(a => a.StartsAt)
+            .Select(a => new AppointmentDto(a.Id, a.PatientId, a.Patient.User.FullName, a.DoctorId, a.Doctor.User.FullName,
+                a.Doctor.Specialty, a.StartsAt, a.Reason, a.Status))
+            .ToPagedAsync(page, pageSize);
+    }
 
     [HttpPost, Authorize(Roles = Roles.Patient)]
     public async Task<ActionResult<AppointmentDto>> Create(CreateAppointmentRequest req)
